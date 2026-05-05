@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, LogOut, Zap } from 'lucide-react'
+import { FileText, LayoutDashboard, LogOut, Zap } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/contexts/auth'
 import { useLogoutMutation } from '@/hooks/useAuth'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { label: 'Formularios', icon: FileText, path: '/forms' },
 ]
 
 export function Sidebar() {
@@ -34,7 +35,8 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 px-2 py-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path
+          const isActive = location.pathname === item.path ||
+            (item.path !== '/' && location.pathname.startsWith(item.path))
           return (
             <Link
               key={item.path}

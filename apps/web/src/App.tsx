@@ -4,6 +4,8 @@ import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ProtectedRoute, PublicRoute } from '@/contexts/auth'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { FormsPage } from '@/features/forms/FormsPage'
+import { FormDetailPage } from '@/features/forms/FormDetailPage'
 
 export default function App() {
   return (
@@ -15,6 +17,8 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/forms" element={<FormsPage />} />
+          <Route path="/forms/:id" element={<FormDetailPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
