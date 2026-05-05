@@ -50,9 +50,10 @@ Substituir o combo Typeform+Calendly com experiencia nativa brasileira, integrad
 **Stack:** Definida (Go + React + PostgreSQL + Redis).
 **Sprint 1 (Alicerce):** Entregue — Docker, migrations, auth backend completo.
 **Sprint 2 (Frontend Shell):** Entregue — Vite scaffold, auth pages, app shell, protected routes, CI.
-**ADRs:** 4 registradas + 8 decisoes em STATE.md.
+**Sprint 3 (Form CRUD):** Entregue — migration 0002, API CRUD completo, frontend pages, tenant fix.
+**ADRs:** 4 registradas + 12 decisoes em STATE.md (D001-D016).
 **Agentes:** 3 configurados (Engenheiro, Dev Senior, Dev Pleno).
-**Proximo passo:** Sprint 3 — Form CRUD (Fase 2: Form Builder).
+**Proximo passo:** Sprint 4 — Visual Builder (drag-and-drop, flow engine).
 
 ---
 

@@ -62,6 +62,22 @@ ProtectedRoute usa useMeQuery via AuthContext. Se loading → spinner. Se erro �
 
 Fetch wrapper transforma keys: camelCase (TS) ↔ snake_case (wire). Auto-refresh em 401 com dedup (isRefreshing flag). CSRF double-submit via cookie → header. ApiError class com status/code/message.
 
+### D013: Draft em forms.draft_definition JSONB (2026-05-05)
+
+Draft do flow fica na row do form. Publish copia draft_definition → nova form_version.flow_definition. PostgreSQL TOAST comprime JSONB >2KB. Na listagem, NAO retornar draft_definition (payload grande).
+
+### D014: Sem tabela questions — ADR-002 prevalece (2026-05-05)
+
+Questions vivem como nodes no flow_definition JSONB. Tabela questions da spec Fase 2 descartada — violaria ADR-002 e criaria dual source of truth.
+
+### D015: Soft delete em forms (2026-05-05)
+
+deleted_at TIMESTAMPTZ nullable. Partial unique index no slug (WHERE deleted_at IS NULL). Soft delete preserva responses associadas.
+
+### D016: Tenant middleware TX-per-request (2026-05-05)
+
+Bug critico corrigido: SET LOCAL era em conexao separada das queries (RLS nunca ativava). Fix: middleware inicia TX, faz set_config parametrizado, injeta TX no context via db.WithTxCtx. Repositories usam db.Conn(ctx, pool) que retorna TX do context ou fallback pro pool.
+
 ---
 
 ## Blockers
@@ -74,6 +90,8 @@ Nenhum no momento.
 
 - TS 6 `erasableSyntaxOnly` bloqueia `public` em constructor params. Declarar propriedades explicitamente.
 - `baseUrl` deprecado no TS 6. Usar `paths` sem `baseUrl`.
+- SET LOCAL so funciona dentro de TX. Sem TX, setting nao persiste pra queries subsequentes em connections pooled.
+- PostgreSQL SET nao suporta bind params ($1). Usar `SELECT set_config('name', $1, true)` pra parametrizar.
 
 ---
 
@@ -88,6 +106,10 @@ Nenhum no momento.
 - [x] Implementar auth flow (login, registro, JWT refresh) — auth_service.go
 - [x] Criar migration 0001_foundation.up.sql — organizations, users, refresh_tokens
 - [x] Frontend shell — scaffold, auth pages, app shell, protected routes
+- [x] Form CRUD API — migration 0002, handler, service, repository
+- [x] Form CRUD frontend — listagem, criacao, detalhe, publicacao
+- [x] Fix tenant middleware — TX-per-request com set_config
 - [ ] Configurar Sentry + OpenTelemetry
 - [ ] Definir OpenAPI 3.1 spec inicial
-- [ ] Fase 2: Form Builder
+- [ ] Sprint 4: Visual builder (drag-and-drop, block palette, property panel)
+- [ ] Sprint 5: Form runner + response storage
