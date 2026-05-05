@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(go test*)",
+      "Bash(go build*)",
+      "Bash(go vet*)",
+      "Bash(pnpm install*)",
+      "Bash(pnpm run*)",
+      "Bash(npx vitest*)",
+      "Bash(npx playwright*)",
+      "Bash(npx tsc*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(docker compose*)",
+      "Bash(ls*)",
+      "Bash(find*)",
+      "Bash(mkdir*)"
+    ]
+  }
+}

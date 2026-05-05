@@ -1,0 +1,38 @@
+# Go
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+vendor/
+
+# Node
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Test
+coverage/
+*.cover
+*.out
+
+# Build
+*.log
