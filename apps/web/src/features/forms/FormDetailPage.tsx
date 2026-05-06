@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Globe, Trash2 } from 'lucide-react'
+import { ArrowLeft, Globe, Trash2, Pencil } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useFormQuery, useDeleteFormMutation, usePublishFormMutation } from '@/hooks/useForms'
@@ -57,6 +57,10 @@ export function FormDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(`/forms/${id}/builder`)}>
+            <Pencil className="h-4 w-4" />
+            Editar
+          </Button>
           {(form.status === 'draft' || form.status === 'published') && (
             <Button
               onClick={handlePublish}

@@ -26,7 +26,8 @@
 
     /* Path alias */
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@typecall/flow-engine": ["../../packages/flow-engine/src/index.ts"]
     }
   },
   "include": ["src"]
