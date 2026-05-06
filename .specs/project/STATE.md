@@ -78,6 +78,18 @@ deleted_at TIMESTAMPTZ nullable. Partial unique index no slug (WHERE deleted_at 
 
 Bug critico corrigido: SET LOCAL era em conexao separada das queries (RLS nunca ativava). Fix: middleware inicia TX, faz set_config parametrizado, injeta TX no context via db.WithTxCtx. Repositories usam db.Conn(ctx, pool) que retorna TX do context ou fallback pro pool.
 
+### D017: Flow engine como TS package puro (2026-05-06)
+
+packages/flow-engine contem types, traverser, evaluator e validator. Shared entre builder (apps/web) e runner (apps/embed). FlowDefinition usa `nodes[]` + `edges[]`. 18 step types definidos. Condition evaluator com 14 operadores. Validator detecta ciclos via DFS colorido e verifica alcancabilidade via BFS.
+
+### D018: Builder linear-first, branching visual depois (2026-05-06)
+
+Sprint 4 builder usa lista sortable (@dnd-kit). Edges auto-geradas da ordem dos nodes (linear). Branching condicional existe no flow-engine (evaluator) mas o builder visual de grafo (xyflow) fica pra Sprint futura. Suficiente pra MVP — 90%+ dos forms sao lineares.
+
+### D019: Flow-engine via path alias, nao npm link (2026-05-06)
+
+apps/web consome packages/flow-engine via tsconfig paths + vite resolve alias apontando direto pra source (.ts). Sem build step intermediario durante dev. Vite transpila on-the-fly. Build de producao inclui no bundle.
+
 ---
 
 ## Blockers
@@ -109,7 +121,7 @@ Nenhum no momento.
 - [x] Form CRUD API — migration 0002, handler, service, repository
 - [x] Form CRUD frontend — listagem, criacao, detalhe, publicacao
 - [x] Fix tenant middleware — TX-per-request com set_config
+- [x] Sprint 4: Visual builder — flow-engine, @dnd-kit canvas, block palette, property panel, preview, auto-save
 - [ ] Configurar Sentry + OpenTelemetry
 - [ ] Definir OpenAPI 3.1 spec inicial
-- [ ] Sprint 4: Visual builder (drag-and-drop, block palette, property panel)
 - [ ] Sprint 5: Form runner + response storage

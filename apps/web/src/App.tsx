@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { FormsPage } from '@/features/forms/FormsPage'
 import { FormDetailPage } from '@/features/forms/FormDetailPage'
+import { FormBuilderPage } from '@/features/builder/FormBuilderPage'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/forms" element={<FormsPage />} />
           <Route path="/forms/:id" element={<FormDetailPage />} />
+          <Route path="/forms/:id/builder" element={<FormBuilderPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

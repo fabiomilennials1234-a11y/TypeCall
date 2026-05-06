@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@typecall/flow-engine': path.resolve(__dirname, '../../packages/flow-engine/src/index.ts'),
     },
   },
   server: {
