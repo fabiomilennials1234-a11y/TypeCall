@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 
 	"github.com/typecall/api/internal/domain"
 	"github.com/typecall/api/internal/repository"
@@ -33,15 +34,18 @@ type BookingService interface {
 type bookingService struct {
 	bookingRepo repository.BookingRepository
 	pubETRepo   repository.PublicEventTypeRepository
+	webhookSvc  WebhookService
 }
 
 func NewBookingService(
 	bookingRepo repository.BookingRepository,
 	pubETRepo repository.PublicEventTypeRepository,
+	webhookSvc WebhookService,
 ) BookingService {
 	return &bookingService{
 		bookingRepo: bookingRepo,
 		pubETRepo:   pubETRepo,
+		webhookSvc:  webhookSvc,
 	}
 }
 
@@ -109,6 +113,33 @@ func (s *bookingService) Create(ctx context.Context, input domain.CreateBookingI
 
 	if err := s.bookingRepo.Create(ctx, booking); err != nil {
 		return nil, fmt.Errorf("BookingService.Create: %w", err)
+	}
+
+	if s.webhookSvc != nil {
+		go func() {
+			payload := domain.TorqueWebhookPayload{
+				Source: "typecall",
+				Booking: &domain.TorqueBookingPayload{
+					ID:          booking.ID.String(),
+					EventType:   et.Title,
+					EventTypeID: et.ID.String(),
+					StartTime:   booking.StartTime.Format(time.RFC3339),
+					EndTime:      booking.EndTime.Format(time.RFC3339),
+					Timezone:    booking.Timezone,
+					HostName:    "",
+					HostEmail:   "",
+					Status:      string(booking.Status),
+				},
+				Respondent: &domain.TorqueRespondent{
+					Name:  booking.AttendeeName,
+					Email: booking.AttendeeEmail,
+					Phone: derefStr(booking.AttendeePhone),
+				},
+			}
+			if err := s.webhookSvc.Dispatch(context.Background(), booking.OrganizationID, "booking.created", payload); err != nil {
+				log.Error().Err(err).Str("booking_id", booking.ID.String()).Msg("webhook dispatch failed for booking.created")
+			}
+		}()
 	}
 
 	return booking, nil
@@ -180,4 +211,11 @@ func generateToken() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
