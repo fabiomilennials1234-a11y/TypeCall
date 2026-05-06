@@ -50,7 +50,7 @@ function runnerReducer(state: RunnerState, action: RunnerAction): RunnerState {
       const currentNode = state.flow.nodes.find((n) => n.id === state.currentNodeId)
       if (!currentNode) return state
 
-      if (currentNode.type !== 'welcome' && currentNode.type !== 'ending' && currentNode.type !== 'statement') {
+      if (currentNode.type !== 'welcome' && currentNode.type !== 'ending' && currentNode.type !== 'statement' && currentNode.type !== 'schedule') {
         const result = validateAnswer(currentNode, state.answers[state.currentNodeId] ?? null)
         if (!result.valid) {
           const firstError = result.errors[0]

@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ChevronUp, ChevronDown, Check, Loader2 } from 'lucide-react'
-import type { AnswerValue } from '@typecall/flow-engine'
+import type { AnswerValue, FlowDefinition, Answers, StepType } from '@typecall/flow-engine'
 
 import * as publicApi from '@/api/endpoints/public'
 import { useRunner } from '@/features/runner/useRunner'
@@ -147,6 +147,8 @@ export function FormRunnerPage() {
             error={errors[currentNode.id] ?? ''}
             onChange={(value: AnswerValue) => setAnswer(currentNode.id, value)}
             onSubmit={next}
+            prefillName={getPrefillFromAnswers(flow, answers, 'short_text')}
+            prefillEmail={getPrefillFromAnswers(flow, answers, 'email')}
           />
         </div>
       </div>
@@ -177,4 +179,11 @@ export function FormRunnerPage() {
       </div>
     </div>
   )
+}
+
+function getPrefillFromAnswers(flow: FlowDefinition, answers: Answers, targetType: StepType): string | undefined {
+  const node = flow.nodes.find((n) => n.type === targetType)
+  if (!node) return undefined
+  const val = answers[node.id]
+  return typeof val === 'string' && val ? val : undefined
 }

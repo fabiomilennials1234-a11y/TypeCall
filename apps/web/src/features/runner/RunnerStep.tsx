@@ -1,4 +1,5 @@
-import type { FlowNode, AnswerValue, Choice } from '@typecall/flow-engine'
+import type { FlowNode, AnswerValue, Choice, ScheduleNodeData } from '@typecall/flow-engine'
+import { ScheduleStep } from '@/features/runner/ScheduleStep'
 import { cn } from '@/lib/cn'
 
 interface RunnerStepProps {
@@ -7,9 +8,11 @@ interface RunnerStepProps {
   error: string
   onChange: (value: AnswerValue) => void
   onSubmit: () => void
+  prefillName?: string
+  prefillEmail?: string
 }
 
-export function RunnerStep({ node, value, error, onChange, onSubmit }: RunnerStepProps) {
+export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName, prefillEmail }: RunnerStepProps) {
   const { type, data } = node
 
   return (
@@ -57,6 +60,18 @@ export function RunnerStep({ node, value, error, onChange, onSubmit }: RunnerSte
           value={String(value ?? '')}
           error={error}
           onChange={onChange}
+        />
+      )}
+
+      {type === 'schedule' && (
+        <ScheduleStep
+          eventTypeId={(data.props as ScheduleNodeData).eventTypeId}
+          prefillName={prefillName}
+          prefillEmail={prefillEmail}
+          onBooked={(bookingId) => {
+            onChange(bookingId)
+            onSubmit()
+          }}
         />
       )}
 

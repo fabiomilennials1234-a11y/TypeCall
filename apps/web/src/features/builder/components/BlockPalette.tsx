@@ -1,4 +1,4 @@
-import { Type, Mail, List, AlignLeft, CheckSquare, GripVertical } from 'lucide-react'
+import { Type, Mail, List, AlignLeft, CheckSquare, GripVertical, CalendarClock } from 'lucide-react'
 import type { StepType } from '@typecall/flow-engine'
 import { cn } from '@/lib/cn'
 
@@ -25,6 +25,12 @@ const blockGroups: { category: string; blocks: BlockDef[] }[] = [
     category: 'Escolha',
     blocks: [
       { type: 'multiple_choice', label: 'Multipla escolha', icon: <List className="h-4 w-4" /> },
+    ],
+  },
+  {
+    category: 'Especial',
+    blocks: [
+      { type: 'schedule', label: 'Agendamento', icon: <CalendarClock className="h-4 w-4" /> },
     ],
   },
   {
