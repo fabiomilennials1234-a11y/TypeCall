@@ -90,6 +90,18 @@ Sprint 4 builder usa lista sortable (@dnd-kit). Edges auto-geradas da ordem dos 
 
 apps/web consome packages/flow-engine via tsconfig paths + vite resolve alias apontando direto pra source (.ts). Sem build step intermediario durante dev. Vite transpila on-the-fly. Build de producao inclui no bundle.
 
+### D020: Public endpoints sem RLS — PublicFormRepository usa pool direto (2026-05-06)
+
+Endpoints /public/forms/{slug} nao passam por tenant middleware (sem JWT). PublicFormRepository faz query direta no pool (sem TX/set_config). JOIN forms+form_versions filtra por slug + status=published + deleted_at IS NULL. Seguro: retorna apenas dados publicados, sem acesso a drafts ou dados de org.
+
+### D021: Response storage com node_id, nao question_id (2026-05-06)
+
+response_answers referencia `node_id TEXT` (ID do node no FlowDefinition JSONB), nao FK pra tabela questions (que nao existe — ADR-002/D014). Unique index (response_id, node_id) previne duplicatas. Answers armazenados como JSONB pra flexibilidade de tipo.
+
+### D022: Form Runner no mesmo SPA, rota /f/{slug} (2026-05-06)
+
+Runner vive em apps/web como rota publica /f/{slug}. Sem auth. Mesma build, bundle split futuro via lazy loading. Quando embed existir (apps/embed), runner sera extraido. Por ora, single SPA simplifica deploy.
+
 ---
 
 ## Blockers
@@ -122,6 +134,7 @@ Nenhum no momento.
 - [x] Form CRUD frontend — listagem, criacao, detalhe, publicacao
 - [x] Fix tenant middleware — TX-per-request com set_config
 - [x] Sprint 4: Visual builder — flow-engine, @dnd-kit canvas, block palette, property panel, preview, auto-save
+- [x] Sprint 5: Form runner + response storage — migration 0003, public/admin endpoints, runner UI, responses admin
 - [ ] Configurar Sentry + OpenTelemetry
 - [ ] Definir OpenAPI 3.1 spec inicial
-- [ ] Sprint 5: Form runner + response storage
+- [ ] Sprint 6: Scheduling engine (Google Calendar, availability, booking)
