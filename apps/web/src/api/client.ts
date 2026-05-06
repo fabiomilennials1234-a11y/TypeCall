@@ -2,6 +2,7 @@ type RequestOptions = {
   method?: string
   body?: unknown
   headers?: Record<string, string>
+  noAuth?: boolean
 }
 
 class ApiError extends Error {
@@ -65,14 +66,14 @@ async function refreshTokens(): Promise<void> {
 }
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, headers = {} } = options
+  const { method = 'GET', body, headers = {}, noAuth = false } = options
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...headers,
   }
 
-  if (method !== 'GET' && method !== 'HEAD') {
+  if (!noAuth && method !== 'GET' && method !== 'HEAD') {
     const csrf = getCsrfToken()
     if (csrf) requestHeaders['X-CSRF-Token'] = csrf
   }
@@ -80,11 +81,11 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   let response = await fetch(path, {
     method,
     headers: requestHeaders,
-    credentials: 'include',
+    credentials: noAuth ? 'omit' : 'include',
     body: body ? JSON.stringify(transformKeys(body, camelToSnake)) : undefined,
   })
 
-  if (response.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
+  if (!noAuth && response.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
     try {
       await refreshTokens()
       const retryHeaders = { ...requestHeaders }
