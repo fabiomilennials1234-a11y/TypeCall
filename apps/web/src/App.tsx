@@ -10,6 +10,9 @@ import { FormBuilderPage } from '@/features/builder/FormBuilderPage'
 import { FormRunnerPage } from '@/features/runner/FormRunnerPage'
 import { ResponsesPage } from '@/features/responses/ResponsesPage'
 import { ResponseDetailPage } from '@/features/responses/ResponseDetailPage'
+import { EventTypesPage } from '@/features/scheduling/EventTypesPage'
+import { EventTypeDetailPage } from '@/features/scheduling/EventTypeDetailPage'
+import { BookingsPage } from '@/features/scheduling/BookingsPage'
 
 export default function App() {
   return (
@@ -27,6 +30,9 @@ export default function App() {
           <Route path="/forms/:id/builder" element={<FormBuilderPage />} />
           <Route path="/forms/:id/responses" element={<ResponsesPage />} />
           <Route path="/forms/:id/responses/:responseId" element={<ResponseDetailPage />} />
+          <Route path="/scheduling" element={<EventTypesPage />} />
+          <Route path="/scheduling/:eventTypeId" element={<EventTypeDetailPage />} />
+          <Route path="/bookings" element={<BookingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

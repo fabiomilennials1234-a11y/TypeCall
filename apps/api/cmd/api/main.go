@@ -93,15 +93,25 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	formVersionRepo := repository.NewFormVersionRepository(pool)
 	responseRepo := repository.NewResponseRepository(pool)
 	publicFormRepo := repository.NewPublicFormRepository(pool)
+	eventTypeRepo := repository.NewEventTypeRepository(pool)
+	availRepo := repository.NewAvailabilityRepository(pool)
+	bookingRepo := repository.NewBookingRepository(pool)
+	pubETRepo := repository.NewPublicEventTypeRepository(pool)
 
 	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
 	formSvc := service.NewFormService(formRepo, formVersionRepo)
 	responseSvc := service.NewResponseService(responseRepo, publicFormRepo)
+	etSvc := service.NewEventTypeService(eventTypeRepo)
+	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo)
+	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc, cfg.IsProduction())
 	formHandler := handler.NewFormHandler(formSvc)
 	responseHandler := handler.NewResponseHandler(responseSvc)
 	publicHandler := handler.NewPublicHandler(responseSvc)
+	etHandler := handler.NewEventTypeHandler(etSvc, availSvc)
+	bookingHandler := handler.NewBookingHandler(bookingSvc)
+	pubBookingHandler := handler.NewPublicBookingHandler(bookingSvc, availSvc)
 
 	r := chi.NewRouter()
 
@@ -167,10 +177,52 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			})
 		})
 
+		r.Route("/event-types", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/", etHandler.Create)
+			r.Get("/", etHandler.List)
+
+			r.Route("/{eventTypeID}", func(r chi.Router) {
+				r.Get("/", etHandler.Get)
+				r.Patch("/", etHandler.Update)
+				r.Delete("/", etHandler.Delete)
+
+				r.Route("/availability", func(r chi.Router) {
+					r.Get("/", etHandler.GetAvailability)
+					r.Put("/", etHandler.SetAvailability)
+					r.Post("/overrides", etHandler.CreateOverride)
+					r.Delete("/overrides/{overrideID}", etHandler.DeleteOverride)
+				})
+			})
+		})
+
+		r.Route("/bookings", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", bookingHandler.List)
+			r.Get("/{bookingID}", bookingHandler.Get)
+			r.Post("/{bookingID}/cancel", bookingHandler.Cancel)
+		})
+
 		r.Route("/public/forms/{slug}", func(r chi.Router) {
 			r.Get("/", publicHandler.GetForm)
 			r.Post("/responses", publicHandler.SubmitResponse)
 		})
+
+		r.Route("/public/event-types/{eventTypeID}", func(r chi.Router) {
+			r.Get("/slots", pubBookingHandler.GetSlots)
+		})
+
+		r.Route("/public/bookings", func(r chi.Router) {
+			r.Post("/", pubBookingHandler.CreateBooking)
+		})
+
+		r.Post("/public/bookings/cancel/{token}", pubBookingHandler.CancelByToken)
 	})
 
 	return r
