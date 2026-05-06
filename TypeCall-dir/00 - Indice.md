@@ -45,15 +45,16 @@ Substituir o combo Typeform+Calendly com experiencia nativa brasileira, integrad
 
 ## Status Atual
 
-**Fase:** Foundation (Fase 1) — Sprint 2 completa.
+**Fase:** Form Builder (Fase 2) — Sprint 4 completa.
 **MVP:** 7 sprints, 11 semanas → [[08 - Backlog/MVP Roadmap|MVP Roadmap]]
 **Stack:** Definida (Go + React + PostgreSQL + Redis).
 **Sprint 1 (Alicerce):** Entregue — Docker, migrations, auth backend completo.
 **Sprint 2 (Frontend Shell):** Entregue — Vite scaffold, auth pages, app shell, protected routes, CI.
 **Sprint 3 (Form CRUD):** Entregue — migration 0002, API CRUD completo, frontend pages, tenant fix.
-**ADRs:** 4 registradas + 12 decisoes em STATE.md (D001-D016).
+**Sprint 4 (Visual Builder):** Entregue — flow-engine package, @dnd-kit builder, block palette, property panel, preview, auto-save.
+**ADRs:** 4 registradas + 19 decisoes em STATE.md (D001-D019).
 **Agentes:** 3 configurados (Engenheiro, Dev Senior, Dev Pleno).
-**Proximo passo:** Sprint 4 — Visual Builder (drag-and-drop, flow engine).
+**Proximo passo:** Sprint 5 — Form Runner + Response Storage.
 
 ---
 
