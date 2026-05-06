@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Globe, Trash2, Pencil } from 'lucide-react'
+import { ArrowLeft, Globe, Trash2, Pencil, MessageSquare, ExternalLink } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useFormQuery, useDeleteFormMutation, usePublishFormMutation } from '@/hooks/useForms'
@@ -57,6 +57,10 @@ export function FormDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(`/forms/${id}/responses`)}>
+            <MessageSquare className="h-4 w-4" />
+            Respostas
+          </Button>
           <Button variant="outline" onClick={() => navigate(`/forms/${id}/builder`)}>
             <Pencil className="h-4 w-4" />
             Editar
@@ -99,6 +103,20 @@ export function FormDetailPage() {
               </div>
             )}
           </dl>
+
+          {form.status === 'published' && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2">
+              <ExternalLink className="h-3.5 w-3.5 text-primary" />
+              <a
+                href={`/f/${form.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                /f/{form.slug}
+              </a>
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6">

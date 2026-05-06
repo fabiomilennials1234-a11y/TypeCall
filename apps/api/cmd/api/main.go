@@ -91,12 +91,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	tokenRepo := repository.NewRefreshTokenRepository(pool)
 	formRepo := repository.NewFormRepository(pool)
 	formVersionRepo := repository.NewFormVersionRepository(pool)
+	responseRepo := repository.NewResponseRepository(pool)
+	publicFormRepo := repository.NewPublicFormRepository(pool)
 
 	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
 	formSvc := service.NewFormService(formRepo, formVersionRepo)
+	responseSvc := service.NewResponseService(responseRepo, publicFormRepo)
 
 	authHandler := handler.NewAuthHandler(authSvc, cfg.IsProduction())
 	formHandler := handler.NewFormHandler(formSvc)
+	responseHandler := handler.NewResponseHandler(responseSvc)
+	publicHandler := handler.NewPublicHandler(responseSvc)
 
 	r := chi.NewRouter()
 
@@ -154,7 +159,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 				r.Delete("/", formHandler.Delete)
 				r.Patch("/draft", formHandler.SaveDraft)
 				r.Post("/publish", formHandler.Publish)
+
+				r.Route("/responses", func(r chi.Router) {
+					r.Get("/", responseHandler.List)
+					r.Get("/{responseID}", responseHandler.Get)
+				})
 			})
+		})
+
+		r.Route("/public/forms/{slug}", func(r chi.Router) {
+			r.Get("/", publicHandler.GetForm)
+			r.Post("/responses", publicHandler.SubmitResponse)
 		})
 	})
 
