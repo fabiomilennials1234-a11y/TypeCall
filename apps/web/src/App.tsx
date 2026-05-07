@@ -17,6 +17,7 @@ import { BookingsPage } from '@/features/scheduling/BookingsPage'
 import { WebhooksPage } from '@/features/webhooks/WebhooksPage'
 import { EmbedPage } from '@/features/embed/EmbedPage'
 import { AnalyticsPage } from '@/features/analytics/AnalyticsPage'
+import { IntegrationsPage } from '@/features/settings/IntegrationsPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/webhooks" element={<WebhooksPage />} />
           <Route path="/embed" element={<EmbedPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/settings/integrations" element={<IntegrationsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />
