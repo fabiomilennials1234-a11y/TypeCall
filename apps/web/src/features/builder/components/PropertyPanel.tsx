@@ -1,9 +1,11 @@
 import { useCallback } from 'react'
 import { X, Plus, Trash2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import type { FlowNode, QuestionData, Choice } from '@typecall/flow-engine'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import * as eventTypesApi from '@/api/endpoints/eventTypes'
 import { cn } from '@/lib/cn'
 
 interface PropertyPanelProps {
@@ -133,6 +135,13 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
           onChange={(choices) => updateProp('choices', choices)}
         />
       )}
+
+      {'eventTypeId' in data.props && (
+        <EventTypeSelector
+          value={(data.props as { eventTypeId: string }).eventTypeId}
+          onChange={(id) => updateProp('eventTypeId', id)}
+        />
+      )}
     </div>
   )
 }
@@ -183,6 +192,36 @@ function ChoicesEditor({ choices, onChange }: ChoicesEditorProps) {
         <Plus className="h-3.5 w-3.5" />
         Adicionar opcao
       </Button>
+    </FieldGroup>
+  )
+}
+
+function EventTypeSelector({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const { data } = useQuery({
+    queryKey: ['event-types'],
+    queryFn: () => eventTypesApi.listEventTypes(),
+  })
+
+  return (
+    <FieldGroup label="Tipo de reuniao">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm',
+          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+        )}
+      >
+        <option value="">Selecione um tipo...</option>
+        {data?.eventTypes.map((et) => (
+          <option key={et.id} value={et.id}>
+            {et.title} ({et.durationMinutes}min)
+          </option>
+        ))}
+      </select>
+      {!value && (
+        <p className="text-xs text-destructive">Selecione um tipo de reuniao para o agendamento funcionar</p>
+      )}
     </FieldGroup>
   )
 }

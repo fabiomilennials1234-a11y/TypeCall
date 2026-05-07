@@ -9,17 +9,20 @@ status: active
 
 Timeline completo de desenvolvimento do TypeCall. 6 fases, 18+ semanas, do scaffolding ao produto completo.
 
-> **MVP funcional:** Fases 1-3 (11 semanas, 7 sprints). Detalhes em [[MVP Roadmap]].
+> **MVP feature-complete:** Fases 1-5 (8 sprints). Hardening pendente: [[MVP Completion Checklist]].
+> **MVP production-ready:** Sprint 9 (hardening) + Sprint 10 (deploy). Timeline: [[MVP Completion Checklist]].
 
 ## Timeline
 
 ```
-Semana  1 ─── 3    Fase 1: Foundation
-Semana  4 ─── 7    Fase 2: Form Builder
-Semana  8 ── 11    Fase 3: Scheduling + Fusion (MVP)
-Semana 12 ── 14    Fase 4: Embed
-Semana 15 ── 17    Fase 5: Analytics + Webhooks
-Semana 18+         Fase 6: Advanced (v1.1 + v2.0)
+Semana  1 ─── 3    Fase 1: Foundation                    ENTREGUE
+Semana  4 ─── 7    Fase 2: Form Builder                  ENTREGUE
+Semana  8 ── 11    Fase 3: Scheduling + Fusion            ENTREGUE
+Semana 12 ── 14    Fase 4: Embed                          ENTREGUE
+Semana 15 ── 17    Fase 5: Analytics + Webhooks            ENTREGUE
+Semana 18 ── 19    Sprint 9: Hardening                    PENDENTE
+Semana 20          Sprint 10: Deploy + Validacao           PENDENTE
+Semana 21+         Fase 6: Advanced (v1.1 + v2.0)
 ```
 
 ## Fases

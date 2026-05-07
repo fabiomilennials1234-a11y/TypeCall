@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Globe, Eye, EyeOff, Save } from 'lucide-react'
+import { ArrowLeft, Globe, Eye, EyeOff, Save, AlertCircle } from 'lucide-react'
 import type { FlowDefinition } from '@typecall/flow-engine'
 
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,7 @@ import { BuilderPreview } from '@/features/builder/components/BuilderPreview'
 export function FormBuilderPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: form, isLoading } = useFormQuery(id!)
+  const { data: form, isLoading, isError } = useFormQuery(id!)
   const publishMutation = usePublishFormMutation(id!)
   const [showPreview, setShowPreview] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -51,10 +51,20 @@ export function FormBuilderPage() {
     setTimeout(() => setSaveStatus('idle'), 2000)
   })
 
-  if (isLoading || !form) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (isError || !form) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <h2 className="mt-4 text-lg font-medium">Formulário não encontrado</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Este formulário não existe ou foi removido.</p>
       </div>
     )
   }

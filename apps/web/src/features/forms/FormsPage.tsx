@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, FileText } from 'lucide-react'
+import { Plus, FileText, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useFormsQuery } from '@/hooks/useForms'
@@ -9,7 +9,7 @@ import { FormStatusBadge } from '@/features/forms/components/FormStatusBadge'
 
 export function FormsPage() {
   const [showCreate, setShowCreate] = useState(false)
-  const { data, isLoading } = useFormsQuery()
+  const { data, isLoading, isError } = useFormsQuery()
 
   return (
     <div className="p-6 lg:p-8">
@@ -29,6 +29,14 @@ export function FormsPage() {
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {isError && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <h2 className="mt-4 text-lg font-medium">Erro ao carregar formulários</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Tente recarregar a página.</p>
         </div>
       )}
 

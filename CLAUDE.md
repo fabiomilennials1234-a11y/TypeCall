@@ -139,11 +139,11 @@ Resumo critico:
 
 | Fase | Semanas | Status |
 |------|---------|--------|
-| 1: Foundation | 1-3 | Nao iniciada |
-| 2: Form Builder | 4-7 | Nao iniciada |
-| 3: Scheduling + Fusion | 8-11 | Nao iniciada |
-| 4: Embed | 12-14 | Nao iniciada |
-| 5: Analytics + Webhooks | 15-17 | Nao iniciada |
+| 1: Foundation | 1-3 | Entregue |
+| 2: Form Builder | 4-7 | Entregue |
+| 3: Scheduling + Fusion | 8-11 | Entregue |
+| 4: Embed | 12-14 | Entregue |
+| 5: Analytics + Webhooks | 15-17 | Entregue |
 | 6: Advanced | 18+ | Nao iniciada |
 
 ## Arquivos criticos

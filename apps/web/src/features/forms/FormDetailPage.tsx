@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Globe, Trash2, Pencil, MessageSquare, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Globe, Trash2, Pencil, MessageSquare, ExternalLink, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useFormQuery, useDeleteFormMutation, usePublishFormMutation } from '@/hooks/useForms'
@@ -8,14 +8,24 @@ import { FormStatusBadge } from '@/features/forms/components/FormStatusBadge'
 export function FormDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: form, isLoading } = useFormQuery(id!)
+  const { data: form, isLoading, isError } = useFormQuery(id!)
   const deleteMutation = useDeleteFormMutation()
   const publishMutation = usePublishFormMutation(id!)
 
-  if (isLoading || !form) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (isError || !form) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <h2 className="mt-4 text-lg font-medium">Formulário não encontrado</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Este formulário não existe ou foi removido.</p>
       </div>
     )
   }

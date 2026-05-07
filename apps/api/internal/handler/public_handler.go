@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -47,8 +46,16 @@ func (h *PublicHandler) SubmitResponse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input domain.SubmitResponseInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
+		return
+	}
+
+	v := &Validator{}
+	if len(input.Answers) == 0 {
+		v.addError("answers", "at least one answer is required")
+	}
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
