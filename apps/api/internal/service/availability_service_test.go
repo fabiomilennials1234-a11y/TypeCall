@@ -32,7 +32,7 @@ func TestAvailabilityService_SetRules(t *testing.T) {
 		},
 	}
 
-	svc := NewAvailabilityService(availRepo, &mockEventTypeRepository{}, &mockBookingRepository{}, &mockPublicEventTypeRepository{})
+	svc := NewAvailabilityService(availRepo, &mockEventTypeRepository{}, &mockBookingRepository{}, &mockPublicEventTypeRepository{}, nil)
 	rules, err := svc.SetRules(context.Background(), eventTypeID, userID, domain.SetAvailabilityInput{
 		Rules: []domain.AvailabilityRuleInput{
 			{DayOfWeek: 1, StartTime: "09:00:00", EndTime: "17:00:00"},
@@ -82,7 +82,7 @@ func TestAvailabilityService_DeleteOverride(t *testing.T) {
 			availRepo := &mockAvailabilityRepository{}
 			tt.setup(availRepo)
 
-			svc := NewAvailabilityService(availRepo, &mockEventTypeRepository{}, &mockBookingRepository{}, &mockPublicEventTypeRepository{})
+			svc := NewAvailabilityService(availRepo, &mockEventTypeRepository{}, &mockBookingRepository{}, &mockPublicEventTypeRepository{}, nil)
 			err := svc.DeleteOverride(context.Background(), uuid.New())
 
 			if tt.wantErr != nil {
@@ -199,7 +199,7 @@ func TestAvailabilityService_GetAvailableSlots(t *testing.T) {
 			tt.setupAvail(availRepo)
 			tt.setupBook(bookingRepo)
 
-			svc := NewAvailabilityService(availRepo, &mockEventTypeRepository{}, bookingRepo, pubETRepo)
+			svc := NewAvailabilityService(availRepo, &mockEventTypeRepository{}, bookingRepo, pubETRepo, nil)
 			slots, err := svc.GetAvailableSlots(context.Background(), tt.params)
 
 			if tt.wantErr != nil {

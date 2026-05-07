@@ -13,11 +13,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/oauth2"
+	googleoauth "golang.org/x/oauth2/google"
 
 	"github.com/typecall/api/internal/config"
 	cryptohelper "github.com/typecall/api/internal/crypto"
 	"github.com/typecall/api/internal/db"
 	"github.com/typecall/api/internal/handler"
+	"github.com/typecall/api/internal/integration/gcal"
 	mw "github.com/typecall/api/internal/middleware"
 	"github.com/typecall/api/internal/observability"
 	"github.com/typecall/api/internal/repository"
@@ -108,19 +111,28 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	pubAnalyticsRepo := repository.NewPublicAnalyticsRepository(pool)
 	integrationRepo := repository.NewIntegrationRepository(pool)
 
-	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
-	formSvc := service.NewFormService(formRepo, formVersionRepo)
-	responseSvc := service.NewResponseService(responseRepo, publicFormRepo)
-	etSvc := service.NewEventTypeService(eventTypeRepo)
-	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo)
-	webhookSvc := service.NewWebhookService(webhookRepo)
-	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, webhookSvc)
-	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
-
 	encKey, err := cryptohelper.DeriveKey(cfg.EncryptionKey)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to derive encryption key")
 	}
+	gcalOAuth := &oauth2.Config{
+		ClientID:     cfg.GoogleClientID,
+		ClientSecret: cfg.GoogleClientSecret,
+		RedirectURL:  cfg.GoogleRedirectURI,
+		Scopes:       service.GoogleScopes,
+		Endpoint:     googleoauth.Endpoint,
+	}
+	gcalProvider := gcal.NewProvider(integrationRepo, gcalOAuth, encKey)
+
+	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
+	formSvc := service.NewFormService(formRepo, formVersionRepo)
+	responseSvc := service.NewResponseService(responseRepo, publicFormRepo)
+	etSvc := service.NewEventTypeService(eventTypeRepo)
+	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo, gcalProvider)
+	webhookSvc := service.NewWebhookService(webhookRepo)
+	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, webhookSvc)
+	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
+
 	integrationSvc := service.NewIntegrationService(
 		integrationRepo,
 		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURI,

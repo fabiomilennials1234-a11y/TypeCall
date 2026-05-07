@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 
 	"github.com/typecall/api/internal/domain"
+	"github.com/typecall/api/internal/integration/gcal"
 	"github.com/typecall/api/internal/repository"
 )
 
@@ -30,6 +32,7 @@ type availabilityService struct {
 	etRepo      repository.EventTypeRepository
 	bookingRepo repository.BookingRepository
 	pubETRepo   repository.PublicEventTypeRepository
+	gcal        gcal.Provider
 }
 
 func NewAvailabilityService(
@@ -37,12 +40,14 @@ func NewAvailabilityService(
 	etRepo repository.EventTypeRepository,
 	bookingRepo repository.BookingRepository,
 	pubETRepo repository.PublicEventTypeRepository,
+	gcalProvider gcal.Provider,
 ) AvailabilityService {
 	return &availabilityService{
 		availRepo:   availRepo,
 		etRepo:      etRepo,
 		bookingRepo: bookingRepo,
 		pubETRepo:   pubETRepo,
+		gcal:        gcalProvider,
 	}
 }
 
@@ -155,6 +160,19 @@ func (s *availabilityService) GetAvailableSlots(ctx context.Context, params doma
 	existingBookings, err := s.bookingRepo.ListByHostAndRange(ctx, hostID, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("AvailabilityService.GetAvailableSlots: list bookings: %w", err)
+	}
+
+	if s.gcal != nil {
+		busySlots, err := s.gcal.GetBusy(ctx, hostID, from, to)
+		if err != nil {
+			// Soft-fail: a Google Calendar outage shouldn't block all booking flows.
+			// We log and proceed using only TypeCall-internal bookings.
+			log.Warn().Err(err).Str("host_user_id", hostID.String()).Msg("gcal.GetBusy failed, proceeding without external busy slots")
+		} else {
+			for _, b := range busySlots {
+				existingBookings = append(existingBookings, domain.Booking{StartTime: b.Start, EndTime: b.End})
+			}
+		}
 	}
 
 	var slots []domain.TimeSlot
