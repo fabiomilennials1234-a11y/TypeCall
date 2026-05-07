@@ -67,13 +67,16 @@ export function BookingsListView({
             key={booking.id}
             className="flex items-center gap-4 rounded-xl border border-border bg-card p-4"
           >
-            <div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-muted">
-              <span className="text-xs font-medium text-muted-foreground">
-                {startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-              </span>
-              <span className="text-xs text-muted-foreground">
+            <div className="flex h-14 w-14 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
+              <div className="bg-primary/10 py-0.5 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+                {startDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+              </div>
+              <div className="flex flex-1 items-center justify-center text-lg font-semibold leading-none tracking-tight text-foreground">
+                {startDate.getDate()}
+              </div>
+              <div className="border-t border-border bg-muted/30 py-0.5 text-center text-[10px] tabular-nums text-muted-foreground">
                 {startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </span>
+              </div>
             </div>
 
             <button
