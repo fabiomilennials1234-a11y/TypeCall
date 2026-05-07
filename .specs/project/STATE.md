@@ -130,6 +130,34 @@ loader.js detecta `[data-typecall-form]` no DOM e inicializa automaticamente. AP
 
 Eventos de analytics (view, start, question_seen, question_answered, submit, abandon) coletados no frontend (runner + embed) e enviados em batch pro /api/v1/public/events (publico, sem auth). Dedup via event_id (UUID) com ON CONFLICT DO NOTHING. Batch size 5 ou flush a cada 2s. Abandon usa navigator.sendBeacon pra garantir envio no beforeunload. Materialized view form_daily_metrics atualizada via REFRESH CONCURRENTLY.
 
+### D031: Integracao Google OAuth + Google Calendar (2026-05-07)
+
+D023 adiou GCal na Fase 3. Agora trazido. Sprint A-H entregues em branch feature/google-integration.
+
+**OAuth flow**:
+- `/api/v1/integrations/google/{authorize,callback,disconnect}` (auth required) — usuario logado conecta sua conta Google.
+- `/api/v1/auth/google/{authorize,callback}` (publico) — Sign in with Google. Auto-cria User+Org se email novo (slug derivado do dominio do email com fallback uuid). Persiste credenciais GCal automaticamente.
+- State CSRF: JWT HS256 assinado com CSRFSecret. Claims: uid+oid+nonce (link) ou purpose=signin+nonce (signin). TTL 10min.
+- 2 redirect URIs separadas registradas em Google Console (`GOOGLE_REDIRECT_URI` + `GOOGLE_SIGNIN_REDIRECT_URI`).
+
+**Storage**:
+- Tabela `integration_credentials` (migration 0007). Tokens AES-256-GCM via internal/crypto. Nonce 96-bit per ciphertext. UNIQUE(user_id, provider). RLS por organization_id.
+
+**GCal client** (internal/integration/gcal):
+- google.golang.org/api/calendar/v3.
+- Token refresh transparente via persistingTokenSource (re-encripta access token rotacionado).
+- Circuit breaker per-user: 3 falhas consecutivas → open 60s → half-open.
+- FreeBusy integrado em availability_service (busy slots merged em existingBookings antes do conflict check). Soft-fail em GCal outage (log + segue com bookings internos).
+
+**Booking sync**:
+- bookingService.Create dispara CreateEvent (host accepted + attendee invited + Google Meet auto via conferenceData). Soft-fail mantem booking sem meeting_url; UI oculta "Acessar".
+- Cancel dispara DeleteEvent.
+
+**Watch channels**:
+- Stub /webhooks/gcal recebe push notifications. Setup completo + cron de renovacao + cache invalidation deferidos pra sprint futura quando Redis cache de slots existir.
+
+**Bot Acessar**: oculto sem meeting_url. Click abre Meet em nova aba.
+
 ### D030: Tela /bookings com toggle Lista | Agenda (2026-05-07)
 
 Tela de Reunioes ganha duas visoes alternaveis:

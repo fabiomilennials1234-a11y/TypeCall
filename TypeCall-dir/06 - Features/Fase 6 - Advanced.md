@@ -17,6 +17,32 @@ Funcionalidades avancadas que expandem o TypeCall de MVP para plataforma complet
 
 ---
 
+## Iteracao Pos-MVP — Google OAuth + Google Calendar Sync
+
+**Status**: entregue 2026-05-07 (branch `feature/google-integration`)
+
+Trazido da Fase 3 onde foi adiado por D023. Sprint A-H executadas:
+
+- **Sprint A**: migration 0007 `integration_credentials` (RLS, AES-256-GCM nonce/ciphertext separados), pkg `internal/crypto`, `internal/domain/integration.go`, env vars validadas (`ENCRYPTION_KEY` hex 32 bytes, `GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI`).
+- **Sprint B**: link/unlink de conta Google ao usuario logado. `IntegrationRepository`, `IntegrationService` (state JWT-signed, prompt=consent, /userinfo verified email), `IntegrationHandler` (`/integrations/google/{authorize,callback,disconnect,status}`), `/settings/integrations` UI.
+- **Sprint C**: Sign in with Google. Auto-cria User+Org se email novo (slug = dominio do email com fallback uuid). `GoogleSigninFlow`, `/auth/google/{authorize,callback}`. Botao "Continuar com Google" em `/login` e `/register`.
+- **Sprint D**: client `internal/integration/gcal` sobre `google.golang.org/api/calendar/v3`. Refresh transparente (re-encripta access token), circuit breaker per-user, FreeBusy integrado em `availability_service.GetAvailableSlots` (busy slots merged em existingBookings). Soft-fail em outage.
+- **Sprint E**: `bookingService.Create` cria evento GCal com Meet (conferenceData hangoutsMeet, attendees host+respondente, reminder 10min). Persiste `google_event_id` + `meeting_url`. `Cancel` deleta evento. Falha = soft-fail (booking persiste sem meet_url).
+- **Sprint F**: stub `/webhooks/gcal` (parse headers, log). Setup/renew/cache invalidation deferidos pra Redis caching futura.
+- **Sprint G**: botao "Acessar" oculto sem `meeting_url`, abre Meet em nova aba.
+- **Sprint H**: ADR-005 + decisao D031 em STATE.md.
+
+Referencias:
+- [[../09 - Referencias/Integracoes/Google Calendar]] — brief tecnico
+- [[../07 - Decisoes/ADR-005-google-oauth-gcal-sync]] — decisao formal
+
+Pendente em sprint futura:
+- Redis cache de slots (avail:{event_type_id}:{user_id}:{date_range}, TTL 15min).
+- Watch channel setup completo + cron renovacao 24h antes dos 7d.
+- Reschedule via UI.
+
+---
+
 ## v1.1 — Polish + Convert
 
 Funcionalidades que refinam a experiencia e aumentam conversao. Entregues incrementalmente apos o MVP.
