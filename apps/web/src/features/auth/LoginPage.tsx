@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLoginMutation } from '@/hooks/useAuth'
+import { GoogleSigninButton } from './components/GoogleSigninButton'
 
 const loginSchema = z.object({
   email: z.string().email('Email invalido'),
@@ -20,6 +22,18 @@ type LoginForm = z.infer<typeof loginSchema>
 export function LoginPage() {
   const navigate = useNavigate()
   const loginMutation = useLoginMutation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [oauthError, setOauthError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const err = searchParams.get('error')
+    if (err) {
+      setOauthError(googleErrorMessage(err))
+      const next = new URLSearchParams(searchParams)
+      next.delete('error')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -43,11 +57,25 @@ export function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
+            {oauthError && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {oauthError}
+              </div>
+            )}
             {loginMutation.error && (
               <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                 {loginMutation.error.message}
               </div>
             )}
+            <GoogleSigninButton disabled={loginMutation.isPending} />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="seu@email.com" {...register('email')} />
@@ -74,4 +102,15 @@ export function LoginPage() {
       </Card>
     </div>
   )
+}
+
+function googleErrorMessage(code: string): string {
+  switch (code) {
+    case 'oauth_denied': return 'Autorizacao Google cancelada.'
+    case 'invalid_state': return 'Sessao OAuth expirou. Tente novamente.'
+    case 'missing_params': return 'Resposta do Google incompleta.'
+    case 'account_disabled': return 'Conta desativada. Contate o admin.'
+    case 'callback_failed': return 'Falha ao concluir login com Google.'
+    default: return `Erro ao entrar com Google (${code}).`
+  }
 }

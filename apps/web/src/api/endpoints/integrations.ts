@@ -21,3 +21,7 @@ export function getGoogleAuthorizeURL(): Promise<{ authorizeUrl: string }> {
 export function disconnectGoogle(): Promise<void> {
   return api<void>('/api/v1/integrations/google', { method: 'DELETE' })
 }
+
+export function getGoogleSigninURL(): Promise<{ authorizeUrl: string }> {
+  return api<{ authorizeUrl: string }>('/api/v1/auth/google/authorize', { noAuth: true })
+}

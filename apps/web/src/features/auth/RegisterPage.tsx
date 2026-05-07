@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { useRegisterMutation } from '@/hooks/useAuth'
+import { GoogleSigninButton } from './components/GoogleSigninButton'
 
 const registerSchema = z.object({
   orgName: z.string().min(2, 'Minimo 2 caracteres'),
@@ -52,6 +53,16 @@ export function RegisterPage() {
                 {registerMutation.error.message}
               </div>
             )}
+
+            <GoogleSigninButton disabled={registerMutation.isPending} />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou cadastre-se com email</span>
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="name">Seu nome</Label>
