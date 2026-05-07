@@ -101,9 +101,18 @@ export function BookingsListView({
               {config.label}
             </span>
 
-            <Button variant="outline" size="sm" onClick={() => {}}>
-              Acessar
-            </Button>
+            {booking.meetingUrl && (
+              <a
+                href={booking.meetingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button variant="outline" size="sm">
+                  Acessar
+                </Button>
+              </a>
+            )}
 
             {canCancel && (
               <button
