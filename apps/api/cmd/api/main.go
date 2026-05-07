@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/typecall/api/internal/config"
+	cryptohelper "github.com/typecall/api/internal/crypto"
 	"github.com/typecall/api/internal/db"
 	"github.com/typecall/api/internal/handler"
 	mw "github.com/typecall/api/internal/middleware"
@@ -105,6 +106,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookRepo := repository.NewWebhookRepository(pool)
 	analyticsRepo := repository.NewAnalyticsRepository(pool)
 	pubAnalyticsRepo := repository.NewPublicAnalyticsRepository(pool)
+	integrationRepo := repository.NewIntegrationRepository(pool)
 
 	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
 	formSvc := service.NewFormService(formRepo, formVersionRepo)
@@ -114,6 +116,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookSvc := service.NewWebhookService(webhookRepo)
 	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, webhookSvc)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
+
+	encKey, err := cryptohelper.DeriveKey(cfg.EncryptionKey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to derive encryption key")
+	}
+	integrationSvc := service.NewIntegrationService(
+		integrationRepo,
+		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURI,
+		cfg.CSRFSecret,
+		encKey,
+	)
 
 	authHandler := handler.NewAuthHandler(authSvc, cfg.IsProduction())
 	formHandler := handler.NewFormHandler(formSvc)
@@ -125,6 +138,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
 	pubEventsHandler := handler.NewPublicEventsHandler(analyticsSvc, pool)
+	integrationHandler := handler.NewIntegrationHandler(integrationSvc, cfg.WebBaseURL)
 
 	r := chi.NewRouter()
 
@@ -249,6 +263,19 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Delete("/config", webhookHandler.DeleteConfig)
 			r.Get("/deliveries", webhookHandler.ListDeliveries)
 			r.Post("/deliveries/{deliveryID}/retry", webhookHandler.RetryDelivery)
+		})
+
+		r.Route("/integrations", func(r chi.Router) {
+			r.Get("/google/callback", integrationHandler.GoogleCallback)
+
+			r.Group(func(r chi.Router) {
+				r.Use(mw.Auth(authSvc))
+				r.Use(mw.Tenant(pool))
+
+				r.Get("/google", integrationHandler.GoogleStatus)
+				r.Get("/google/authorize", integrationHandler.GoogleAuthorize)
+				r.Delete("/google", integrationHandler.GoogleDisconnect)
+			})
 		})
 
 		r.Route("/public/forms/{slug}", func(r chi.Router) {

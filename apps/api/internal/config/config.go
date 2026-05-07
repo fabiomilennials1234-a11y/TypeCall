@@ -19,6 +19,7 @@ type Config struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURI  string
+	WebBaseURL         string
 }
 
 func Load() (*Config, error) {
@@ -39,6 +40,7 @@ func Load() (*Config, error) {
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURI:  getEnv("GOOGLE_REDIRECT_URI", ""),
+		WebBaseURL:         getEnv("WEB_BASE_URL", "http://localhost:5173"),
 	}
 
 	if cfg.DatabaseURL == "" {
