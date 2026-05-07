@@ -12,6 +12,7 @@ const (
 	RoleAdmin  Role = "admin"
 	RoleMember Role = "member"
 	RoleMaster Role = "master"
+	RoleSeller Role = "seller"
 )
 
 type User struct {

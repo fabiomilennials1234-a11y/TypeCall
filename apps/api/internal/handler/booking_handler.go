@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/typecall/api/internal/domain"
+	mw "github.com/typecall/api/internal/middleware"
 	"github.com/typecall/api/internal/service"
 )
 
@@ -105,6 +106,103 @@ func (h *BookingHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
+}
+
+// --- Sales Deals: Kanban + Reschedule ----------------------------------
+
+// GET /api/v1/bookings/kanban?seller_id=<uuid>
+func (h *BookingHandler) Kanban(w http.ResponseWriter, r *http.Request) {
+	orgID := mw.GetOrgID(r.Context())
+	var sellerFilter *uuid.UUID
+	if q := r.URL.Query().Get("seller_id"); q != "" {
+		if id, err := uuid.Parse(q); err == nil {
+			sellerFilter = &id
+		}
+	}
+	board, err := h.bookingSvc.GetKanbanBoard(r.Context(), orgID, sellerFilter)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load kanban", "INTERNAL_ERROR")
+		return
+	}
+	writeJSON(w, http.StatusOK, board)
+}
+
+// PATCH /api/v1/bookings/:id/status — body {status, notes?}
+func (h *BookingHandler) UpdateKanbanStatus(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "bookingID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid booking id", "INVALID_ID")
+		return
+	}
+	var body struct {
+		Status string  `json:"status"`
+		Notes  *string `json:"notes,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body", "INVALID_BODY")
+		return
+	}
+	to := domain.KanbanStatus(body.Status)
+	if !validKanbanStatus(to) {
+		writeError(w, http.StatusUnprocessableEntity, "invalid kanban status", "VALIDATION_ERROR")
+		return
+	}
+	userID := mw.GetUserID(r.Context())
+	booking, err := h.bookingSvc.UpdateKanbanStatus(r.Context(), id, to, &userID, body.Notes)
+	if err != nil {
+		if errors.Is(err, service.ErrBookingNotFound) {
+			writeError(w, http.StatusNotFound, "booking not found", "NOT_FOUND")
+			return
+		}
+		if errors.Is(err, service.ErrInvalidKanbanTransition) {
+			writeError(w, http.StatusUnprocessableEntity, "invalid transition", "INVALID_TRANSITION")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to update status", "INTERNAL_ERROR")
+		return
+	}
+	writeJSON(w, http.StatusOK, booking)
+}
+
+// POST /api/v1/bookings/:id/reschedule — body {new_datetime}
+func (h *BookingHandler) Reschedule(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "bookingID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid booking id", "INVALID_ID")
+		return
+	}
+	var body struct {
+		NewDatetime string `json:"new_datetime"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body", "INVALID_BODY")
+		return
+	}
+	t, err := time.Parse(time.RFC3339, body.NewDatetime)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "new_datetime must be RFC3339", "INVALID_INPUT")
+		return
+	}
+	userID := mw.GetUserID(r.Context())
+	booking, err := h.bookingSvc.Reschedule(r.Context(), id, t, &userID)
+	if err != nil {
+		if errors.Is(err, service.ErrBookingNotFound) {
+			writeError(w, http.StatusNotFound, "booking not found", "NOT_FOUND")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to reschedule", "INTERNAL_ERROR")
+		return
+	}
+	writeJSON(w, http.StatusOK, booking)
+}
+
+func validKanbanStatus(s domain.KanbanStatus) bool {
+	switch s {
+	case domain.KanbanStatusToConfirm, domain.KanbanStatusPreConfirmed, domain.KanbanStatusConfirmed,
+		domain.KanbanStatusRescheduled, domain.KanbanStatusNoShow, domain.KanbanStatusCompleted:
+		return true
+	}
+	return false
 }
 
 // Public handlers — no auth

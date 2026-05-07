@@ -396,6 +396,26 @@ func (m *mockBookingRepository) SetGoogleEvent(ctx context.Context, id uuid.UUID
 	return nil
 }
 
+func (m *mockBookingRepository) UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error {
+	return nil
+}
+
+func (m *mockBookingRepository) ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error) {
+	return nil, nil
+}
+
+func (m *mockBookingRepository) SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, tag domain.LeadTag) error {
+	return nil
+}
+
+func (m *mockBookingRepository) Reschedule(ctx context.Context, id uuid.UUID, newStart, newEnd time.Time) error {
+	return nil
+}
+
+func (m *mockBookingRepository) InsertHistory(ctx context.Context, h *domain.BookingHistory) error {
+	return nil
+}
+
 func (m *mockBookingRepository) Cancel(ctx context.Context, id uuid.UUID, reason *string) error {
 	if m.CancelFn != nil {
 		return m.CancelFn(ctx, id, reason)

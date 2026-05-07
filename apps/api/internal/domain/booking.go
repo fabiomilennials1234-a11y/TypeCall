@@ -42,6 +42,13 @@ type Booking struct {
 	CancelledAt       *time.Time      `json:"cancelled_at,omitempty"`
 	CancelReason      *string         `json:"cancel_reason,omitempty"`
 	RescheduledFromID *uuid.UUID      `json:"rescheduled_from_id,omitempty"`
+	KanbanStatus      KanbanStatus    `json:"kanban_status"`
+	SellerID          *uuid.UUID      `json:"seller_id,omitempty"`
+	LeadTag           *LeadTag        `json:"lead_tag,omitempty"`
+	UTMSource         *string         `json:"utm_source,omitempty"`
+	UTMMedium         *string         `json:"utm_medium,omitempty"`
+	UTMCampaign       *string         `json:"utm_campaign,omitempty"`
+	UTMContent        *string         `json:"utm_content,omitempty"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 }

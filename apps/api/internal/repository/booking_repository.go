@@ -26,6 +26,12 @@ type BookingRepository interface {
 	CheckConflict(ctx context.Context, hostUserID uuid.UUID, start time.Time, end time.Time) (bool, error)
 	CountByHostAndDate(ctx context.Context, hostUserID uuid.UUID, date time.Time) (int, error)
 	ListByHostAndRange(ctx context.Context, hostUserID uuid.UUID, start time.Time, end time.Time) ([]domain.Booking, error)
+
+	UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error
+	ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error)
+	SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, tag domain.LeadTag) error
+	Reschedule(ctx context.Context, id uuid.UUID, newStart, newEnd time.Time) error
+	InsertHistory(ctx context.Context, h *domain.BookingHistory) error
 }
 
 type PublicEventTypeRepository interface {
@@ -277,6 +283,8 @@ const bookingSelectQuery = `
 		b.location_type, b.location_value, b.google_event_id, b.meeting_url,
 		b.cancel_token, b.reschedule_token, b.notes, b.metadata,
 		b.cancelled_at, b.cancel_reason, b.rescheduled_from_id,
+		b.kanban_status, b.seller_id, b.lead_tag,
+		b.utm_source, b.utm_medium, b.utm_campaign, b.utm_content,
 		b.created_at, b.updated_at
 	FROM bookings b`
 
@@ -289,6 +297,8 @@ func (r *bookingRepository) scanBooking(row pgx.Row) (*domain.Booking, error) {
 		&b.LocationType, &b.LocationValue, &b.GoogleEventID, &b.MeetingURL,
 		&b.CancelToken, &b.RescheduleToken, &b.Notes, &b.Metadata,
 		&b.CancelledAt, &b.CancelReason, &b.RescheduledFromID,
+		&b.KanbanStatus, &b.SellerID, &b.LeadTag,
+		&b.UTMSource, &b.UTMMedium, &b.UTMCampaign, &b.UTMContent,
 		&b.CreatedAt, &b.UpdatedAt,
 	)
 	if err != nil {
@@ -309,12 +319,96 @@ func (r *bookingRepository) scanBookingRow(rows pgx.Rows) (*domain.Booking, erro
 		&b.LocationType, &b.LocationValue, &b.GoogleEventID, &b.MeetingURL,
 		&b.CancelToken, &b.RescheduleToken, &b.Notes, &b.Metadata,
 		&b.CancelledAt, &b.CancelReason, &b.RescheduledFromID,
+		&b.KanbanStatus, &b.SellerID, &b.LeadTag,
+		&b.UTMSource, &b.UTMMedium, &b.UTMCampaign, &b.UTMContent,
 		&b.CreatedAt, &b.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	return b, nil
+}
+
+// --- Sales Deals additions ----------------------------------------------
+
+func (r *bookingRepository) UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error {
+	conn := db.Conn(ctx, r.pool)
+	tag, err := conn.Exec(ctx, `UPDATE bookings SET kanban_status = $2, updated_at = now() WHERE id = $1`, id, status)
+	if err != nil {
+		return fmt.Errorf("BookingRepository.UpdateKanbanStatus: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("BookingRepository.UpdateKanbanStatus: not found")
+	}
+	return nil
+}
+
+func (r *bookingRepository) ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error) {
+	conn := db.Conn(ctx, r.pool)
+	args := []any{orgID}
+	q := bookingSelectQuery + " WHERE b.organization_id = $1"
+	if sellerID != nil {
+		q += " AND b.seller_id = $2"
+		args = append(args, *sellerID)
+	}
+	q += " ORDER BY b.start_time DESC"
+
+	rows, err := conn.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("BookingRepository.ListByOrg: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]domain.Booking, 0)
+	for rows.Next() {
+		b, err := r.scanBookingRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("BookingRepository.ListByOrg: scan: %w", err)
+		}
+		out = append(out, *b)
+	}
+	return out, nil
+}
+
+func (r *bookingRepository) SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, leadTag domain.LeadTag) error {
+	conn := db.Conn(ctx, r.pool)
+	_, err := conn.Exec(ctx, `UPDATE bookings SET lead_tag = $2, updated_at = now() WHERE response_id = $1`, responseID, leadTag)
+	if err != nil {
+		return fmt.Errorf("BookingRepository.SetLeadTagByResponse: %w", err)
+	}
+	return nil
+}
+
+func (r *bookingRepository) Reschedule(ctx context.Context, id uuid.UUID, newStart, newEnd time.Time) error {
+	conn := db.Conn(ctx, r.pool)
+	tag, err := conn.Exec(ctx,
+		`UPDATE bookings SET start_time = $2, end_time = $3, kanban_status = 'rescheduled', updated_at = now() WHERE id = $1`,
+		id, newStart, newEnd,
+	)
+	if err != nil {
+		return fmt.Errorf("BookingRepository.Reschedule: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("BookingRepository.Reschedule: not found")
+	}
+	return nil
+}
+
+func (r *bookingRepository) InsertHistory(ctx context.Context, h *domain.BookingHistory) error {
+	conn := db.Conn(ctx, r.pool)
+	query := `
+		INSERT INTO booking_history (id, booking_id, organization_id, from_status, to_status, changed_by_user_id, notes, changed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+		RETURNING changed_at`
+	if h.ID == uuid.Nil {
+		h.ID = uuid.New()
+	}
+	err := conn.QueryRow(ctx, query, h.ID, h.BookingID, h.OrganizationID, h.FromStatus, h.ToStatus, h.ChangedByUserID, h.Notes).
+		Scan(&h.ChangedAt)
+	if err != nil {
+		return fmt.Errorf("BookingRepository.InsertHistory: %w", err)
+	}
+	return nil
 }
 
 // PublicEventTypeRepository — queries without RLS (direct pool)

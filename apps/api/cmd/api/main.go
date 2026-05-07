@@ -24,7 +24,10 @@ import (
 	"github.com/typecall/api/internal/integration/gcal"
 	mw "github.com/typecall/api/internal/middleware"
 	"github.com/typecall/api/internal/observability"
+	"github.com/typecall/api/internal/pixels"
+	"github.com/typecall/api/internal/qualification"
 	"github.com/typecall/api/internal/repository"
+	"github.com/typecall/api/internal/sellers"
 	"github.com/typecall/api/internal/service"
 	"github.com/typecall/api/migrations"
 )
@@ -167,6 +170,19 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	gcalWebhookHandler := handler.NewGCalWebhookHandler()
 	assetHandler := handler.NewAssetHandler(assetSvc)
 
+	// Sales Deals modules
+	qualificationRepo := qualification.NewRepository(pool)
+	qualificationSvc := qualification.NewService(qualificationRepo, responseRepo, bookingSvc)
+	qualificationHandler := qualification.NewHandler(qualificationSvc)
+
+	sellersRepo := sellers.NewRepository(pool)
+	sellersSvc := sellers.NewService(sellersRepo, bookingRepo)
+	sellersHandler := sellers.NewHandler(sellersSvc)
+
+	pixelsRepo := pixels.NewRepository(pool)
+	pixelsSvc := pixels.NewService(pixelsRepo)
+	pixelsHandler := pixels.NewHandler(pixelsSvc)
+
 	r := chi.NewRouter()
 
 	r.Use(mw.RequestID)
@@ -269,8 +285,59 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Use(mw.Tenant(pool))
 
 			r.Get("/", bookingHandler.List)
+			r.Get("/kanban", bookingHandler.Kanban)
 			r.Get("/{bookingID}", bookingHandler.Get)
 			r.Post("/{bookingID}/cancel", bookingHandler.Cancel)
+			r.Patch("/{bookingID}/status", bookingHandler.UpdateKanbanStatus)
+			r.Post("/{bookingID}/reschedule", bookingHandler.Reschedule)
+		})
+
+		r.Route("/forms/{formID}/qualification-rules", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/", qualificationHandler.CreateRule)
+			r.Get("/", qualificationHandler.ListRules)
+			r.Patch("/{ruleID}", qualificationHandler.UpdateRule)
+			r.Delete("/{ruleID}", qualificationHandler.DeleteRule)
+		})
+
+		r.Route("/responses/{responseID}/score", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", qualificationHandler.GetScore)
+			r.Post("/", qualificationHandler.RescoreResponse)
+		})
+
+		r.Route("/sellers", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/", sellersHandler.Create)
+			r.Get("/", sellersHandler.List)
+
+			r.Route("/{sellerID}", func(r chi.Router) {
+				r.Get("/", sellersHandler.Get)
+				r.Patch("/", sellersHandler.Update)
+				r.Get("/availability", sellersHandler.GetAvailability)
+				r.Put("/availability", sellersHandler.SetAvailability)
+				r.Get("/goals", sellersHandler.ListGoals)
+				r.Post("/goals", sellersHandler.CreateGoal)
+				r.Get("/slots", sellersHandler.GetSlots)
+			})
+		})
+
+		r.Route("/settings/pixel", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", pixelsHandler.Get)
+			r.Put("/", pixelsHandler.Upsert)
 		})
 
 		r.Route("/analytics", func(r chi.Router) {

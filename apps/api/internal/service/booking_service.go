@@ -30,6 +30,11 @@ type BookingService interface {
 	Cancel(ctx context.Context, id uuid.UUID, reason *string) error
 	GetByCancelToken(ctx context.Context, token string) (*domain.Booking, error)
 	CancelByToken(ctx context.Context, token string, reason *string) error
+
+	UpdateKanbanStatus(ctx context.Context, id uuid.UUID, to domain.KanbanStatus, userID *uuid.UUID, notes *string) (*domain.Booking, error)
+	GetKanbanBoard(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) (*domain.KanbanBoard, error)
+	Reschedule(ctx context.Context, id uuid.UUID, newStart time.Time, userID *uuid.UUID) (*domain.Booking, error)
+	SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, tag domain.LeadTag) error
 }
 
 type bookingService struct {
@@ -216,6 +221,120 @@ func (s *bookingService) CancelByToken(ctx context.Context, token string, reason
 
 	s.deleteFromGoogleCalendar(ctx, b)
 	return nil
+}
+
+// --- Sales Deals additions ----------------------------------------------
+
+var ErrInvalidKanbanTransition = errors.New("invalid kanban transition")
+
+// UpdateKanbanStatus validates legal transitions and persists history.
+func (s *bookingService) UpdateKanbanStatus(ctx context.Context, id uuid.UUID, to domain.KanbanStatus, userID *uuid.UUID, notes *string) (*domain.Booking, error) {
+	b, err := s.bookingRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("BookingService.UpdateKanbanStatus: %w", err)
+	}
+	if b == nil {
+		return nil, ErrBookingNotFound
+	}
+	if b.KanbanStatus == to {
+		return b, nil
+	}
+	if !isAllowedKanbanTransition(b.KanbanStatus, to) {
+		return nil, ErrInvalidKanbanTransition
+	}
+	if err := s.bookingRepo.UpdateKanbanStatus(ctx, id, to); err != nil {
+		return nil, fmt.Errorf("BookingService.UpdateKanbanStatus: %w", err)
+	}
+	from := b.KanbanStatus
+	_ = s.bookingRepo.InsertHistory(ctx, &domain.BookingHistory{
+		BookingID:       id,
+		OrganizationID:  b.OrganizationID,
+		FromStatus:      &from,
+		ToStatus:        to,
+		ChangedByUserID: userID,
+		Notes:           notes,
+	})
+	b.KanbanStatus = to
+	return b, nil
+}
+
+// GetKanbanBoard groups bookings by kanban_status. Optional sellerID filter.
+func (s *bookingService) GetKanbanBoard(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) (*domain.KanbanBoard, error) {
+	all, err := s.bookingRepo.ListByOrg(ctx, orgID, sellerID)
+	if err != nil {
+		return nil, fmt.Errorf("BookingService.GetKanbanBoard: %w", err)
+	}
+	board := &domain.KanbanBoard{
+		ToConfirm:    []domain.Booking{},
+		PreConfirmed: []domain.Booking{},
+		Confirmed:    []domain.Booking{},
+		Rescheduled:  []domain.Booking{},
+		NoShow:       []domain.Booking{},
+		Completed:    []domain.Booking{},
+	}
+	for _, b := range all {
+		switch b.KanbanStatus {
+		case domain.KanbanStatusToConfirm:
+			board.ToConfirm = append(board.ToConfirm, b)
+		case domain.KanbanStatusPreConfirmed:
+			board.PreConfirmed = append(board.PreConfirmed, b)
+		case domain.KanbanStatusConfirmed:
+			board.Confirmed = append(board.Confirmed, b)
+		case domain.KanbanStatusRescheduled:
+			board.Rescheduled = append(board.Rescheduled, b)
+		case domain.KanbanStatusNoShow:
+			board.NoShow = append(board.NoShow, b)
+		case domain.KanbanStatusCompleted:
+			board.Completed = append(board.Completed, b)
+		}
+	}
+	return board, nil
+}
+
+// Reschedule moves a booking to a new start (keeping duration). Logs history.
+func (s *bookingService) Reschedule(ctx context.Context, id uuid.UUID, newStart time.Time, userID *uuid.UUID) (*domain.Booking, error) {
+	b, err := s.bookingRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("BookingService.Reschedule: %w", err)
+	}
+	if b == nil {
+		return nil, ErrBookingNotFound
+	}
+	duration := b.EndTime.Sub(b.StartTime)
+	newStart = newStart.UTC()
+	newEnd := newStart.Add(duration)
+	if err := s.bookingRepo.Reschedule(ctx, id, newStart, newEnd); err != nil {
+		return nil, fmt.Errorf("BookingService.Reschedule: %w", err)
+	}
+	from := b.KanbanStatus
+	_ = s.bookingRepo.InsertHistory(ctx, &domain.BookingHistory{
+		BookingID:       id,
+		OrganizationID:  b.OrganizationID,
+		FromStatus:      &from,
+		ToStatus:        domain.KanbanStatusRescheduled,
+		ChangedByUserID: userID,
+	})
+	b.StartTime = newStart
+	b.EndTime = newEnd
+	b.KanbanStatus = domain.KanbanStatusRescheduled
+	return b, nil
+}
+
+func (s *bookingService) SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, tag domain.LeadTag) error {
+	return s.bookingRepo.SetLeadTagByResponse(ctx, responseID, tag)
+}
+
+func isAllowedKanbanTransition(from, to domain.KanbanStatus) bool {
+	allowed, ok := domain.AllowedKanbanTransitions[from]
+	if !ok {
+		return false
+	}
+	for _, t := range allowed {
+		if t == to {
+			return true
+		}
+	}
+	return false
 }
 
 // syncToGoogleCalendar attempts to mirror the booking into the host's GCal.
