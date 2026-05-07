@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type CORSConfig struct {
@@ -12,13 +14,31 @@ type CORSConfig struct {
 	MaxAge         int
 }
 
-func DefaultCORSConfig() CORSConfig {
-	return CORSConfig{
-		AllowedOrigins: []string{"http://localhost:5173", "http://localhost:3000"},
+func NewCORSConfig(origins string, isDev bool) CORSConfig {
+	cfg := CORSConfig{
 		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"},
 		MaxAge:         86400,
 	}
+
+	if origins != "" {
+		parts := strings.Split(origins, ",")
+		for _, p := range parts {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				cfg.AllowedOrigins = append(cfg.AllowedOrigins, trimmed)
+			}
+		}
+	}
+
+	if len(cfg.AllowedOrigins) == 0 {
+		if isDev {
+			cfg.AllowedOrigins = []string{"http://localhost:5173", "http://localhost:3000"}
+		} else {
+			log.Warn().Msg("CORS_ORIGINS not set in production — no origins allowed")
+		}
+	}
+
+	return cfg
 }
 
 func CORS(cfg CORSConfig) func(http.Handler) http.Handler {

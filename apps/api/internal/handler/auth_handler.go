@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -22,18 +21,20 @@ func NewAuthHandler(authSvc service.AuthService, secure bool) *AuthHandler {
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var input domain.RegisterInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
 		return
 	}
 
-	if input.OrgName == "" || input.OrgSlug == "" || input.Email == "" || input.Password == "" || input.Name == "" {
-		writeError(w, http.StatusBadRequest, "all fields are required", "MISSING_FIELDS")
-		return
-	}
-
-	if len(input.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "password must be at least 8 characters", "WEAK_PASSWORD")
+	v := &Validator{}
+	v.Required("org_name", input.OrgName)
+	v.Required("org_slug", input.OrgSlug)
+	v.Slug("org_slug", input.OrgSlug)
+	v.Email("email", input.Email)
+	v.Required("password", input.Password)
+	v.MinLen("password", input.Password, 8)
+	v.Required("name", input.Name)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
@@ -57,13 +58,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var input domain.LoginInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
 		return
 	}
 
-	if input.Email == "" || input.Password == "" {
-		writeError(w, http.StatusBadRequest, "email and password are required", "MISSING_FIELDS")
+	v := &Validator{}
+	v.Email("email", input.Email)
+	v.Required("password", input.Password)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 

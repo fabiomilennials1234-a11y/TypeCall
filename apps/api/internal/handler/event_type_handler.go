@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -24,13 +24,16 @@ func NewEventTypeHandler(etSvc service.EventTypeService, availSvc service.Availa
 
 func (h *EventTypeHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input domain.CreateEventTypeInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
 		return
 	}
 
-	if input.Title == "" {
-		writeError(w, http.StatusBadRequest, "title is required", "MISSING_FIELDS")
+	v := &Validator{}
+	v.Required("title", input.Title)
+	v.Positive("duration_minutes", input.DurationMinutes)
+	v.Slug("slug", input.Slug)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
@@ -97,8 +100,22 @@ func (h *EventTypeHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input domain.UpdateEventTypeInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
+		return
+	}
+
+	v := &Validator{}
+	if input.Title != nil {
+		v.MaxLen("title", *input.Title, 200)
+	}
+	if input.Slug != nil {
+		v.Slug("slug", *input.Slug)
+	}
+	if input.DurationMinutes != nil && *input.DurationMinutes <= 0 {
+		v.Positive("duration_minutes", *input.DurationMinutes)
+	}
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
@@ -142,8 +159,23 @@ func (h *EventTypeHandler) SetAvailability(w http.ResponseWriter, r *http.Reques
 	}
 
 	var input domain.SetAvailabilityInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
+		return
+	}
+
+	v := &Validator{}
+	for i, rule := range input.Rules {
+		v.InRange(fmt.Sprintf("rules[%d].day_of_week", i), rule.DayOfWeek, 0, 6)
+		v.Required(fmt.Sprintf("rules[%d].start_time", i), rule.StartTime)
+		v.Required(fmt.Sprintf("rules[%d].end_time", i), rule.EndTime)
+		v.TimeBefore(
+			fmt.Sprintf("rules[%d].start_time", i),
+			fmt.Sprintf("rules[%d].end_time", i),
+			rule.StartTime, rule.EndTime,
+		)
+	}
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
@@ -191,13 +223,14 @@ func (h *EventTypeHandler) CreateOverride(w http.ResponseWriter, r *http.Request
 	}
 
 	var input domain.CreateOverrideInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
 		return
 	}
 
-	if input.Date == "" {
-		writeError(w, http.StatusBadRequest, "date is required", "MISSING_FIELDS")
+	v := &Validator{}
+	v.Required("date", input.Date)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, LayoutDashboard, LogOut, Zap, Calendar, Video } from 'lucide-react'
+import { FileText, LayoutDashboard, LogOut, Zap, Calendar, Video, Webhook, Code2, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/contexts/auth'
 import { useLogoutMutation } from '@/hooks/useAuth'
@@ -9,6 +9,9 @@ const navItems = [
   { label: 'Formularios', icon: FileText, path: '/forms' },
   { label: 'Agendamentos', icon: Calendar, path: '/scheduling' },
   { label: 'Reunioes', icon: Video, path: '/bookings' },
+  { label: 'Webhook', icon: Webhook, path: '/webhooks' },
+  { label: 'Embed', icon: Code2, path: '/embed' },
+  { label: 'Analytics', icon: BarChart3, path: '/analytics' },
 ]
 
 export function Sidebar() {

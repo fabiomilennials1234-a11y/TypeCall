@@ -23,13 +23,15 @@ func NewFormHandler(formSvc service.FormService) *FormHandler {
 
 func (h *FormHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input domain.CreateFormInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
 		return
 	}
 
-	if input.Title == "" {
-		writeError(w, http.StatusBadRequest, "title is required", "MISSING_FIELDS")
+	v := &Validator{}
+	v.Required("title", input.Title)
+	v.MaxLen("title", input.Title, 200)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
@@ -100,8 +102,19 @@ func (h *FormHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input domain.UpdateFormInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
+		return
+	}
+
+	v := &Validator{}
+	if input.Title != nil {
+		v.MaxLen("title", *input.Title, 200)
+	}
+	if input.Slug != nil {
+		v.Slug("slug", *input.Slug)
+	}
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 
@@ -147,8 +160,18 @@ func (h *FormHandler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Definition json.RawMessage `json:"definition"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Definition == nil {
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	if body.Definition == nil {
 		writeError(w, http.StatusBadRequest, "definition is required", "INVALID_INPUT")
+		return
+	}
+
+	v := &Validator{}
+	v.MaxBytes("definition", body.Definition, 500*1024)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 

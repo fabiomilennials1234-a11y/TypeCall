@@ -1,8 +1,9 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ProtectedRoute, PublicRoute } from '@/contexts/auth'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { FormsPage } from '@/features/forms/FormsPage'
 import { FormDetailPage } from '@/features/forms/FormDetailPage'
@@ -13,6 +14,10 @@ import { ResponseDetailPage } from '@/features/responses/ResponseDetailPage'
 import { EventTypesPage } from '@/features/scheduling/EventTypesPage'
 import { EventTypeDetailPage } from '@/features/scheduling/EventTypeDetailPage'
 import { BookingsPage } from '@/features/scheduling/BookingsPage'
+import { WebhooksPage } from '@/features/webhooks/WebhooksPage'
+import { EmbedPage } from '@/features/embed/EmbedPage'
+import { AnalyticsPage } from '@/features/analytics/AnalyticsPage'
+import { NotFoundPage } from '@/features/not-found/NotFoundPage'
 
 export default function App() {
   return (
@@ -22,7 +27,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Route>
-      <Route element={<ProtectedRoute />}>
+      <Route element={<ErrorBoundary><ProtectedRoute /></ErrorBoundary>}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/forms" element={<FormsPage />} />
@@ -33,9 +38,12 @@ export default function App() {
           <Route path="/scheduling" element={<EventTypesPage />} />
           <Route path="/scheduling/:eventTypeId" element={<EventTypeDetailPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
+          <Route path="/webhooks" element={<WebhooksPage />} />
+          <Route path="/embed" element={<EmbedPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

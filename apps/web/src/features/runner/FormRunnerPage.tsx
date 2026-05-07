@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ChevronUp, ChevronDown, Check, Loader2 } from 'lucide-react'
@@ -8,6 +8,7 @@ import * as publicApi from '@/api/endpoints/public'
 import { useRunner } from '@/features/runner/useRunner'
 import { RunnerStep } from '@/features/runner/RunnerStep'
 import { cn } from '@/lib/cn'
+import * as tracker from '@/features/runner/tracker'
 
 export function FormRunnerPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -34,6 +35,7 @@ export function FormRunnerPage() {
   } = useRunner()
 
   const [submitted, setSubmitted] = useState(false)
+  const startedRef = useRef(false)
 
   const submitMutation = useMutation({
     mutationFn: () => {
@@ -60,14 +62,35 @@ export function FormRunnerPage() {
   useEffect(() => {
     if (form?.flowDefinition) {
       init(form.flowDefinition)
+      tracker.trackView(form.id)
     }
   }, [form, init])
 
   useEffect(() => {
+    if (!form) return
+    const handleBeforeUnload = () => {
+      if (!submitted) tracker.trackAbandon(form.id)
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [form, submitted])
+
+  useEffect(() => {
+    if (currentNode && form) {
+      tracker.trackQuestionSeen(form.id, currentNode.id)
+      if (!startedRef.current) {
+        startedRef.current = true
+        tracker.trackStart(form.id)
+      }
+    }
+  }, [currentNode, form])
+
+  useEffect(() => {
     if (isComplete && !submitted && !submitMutation.isPending) {
+      if (form) tracker.trackSubmit(form.id)
       submitMutation.mutate()
     }
-  }, [isComplete, submitted, submitMutation])
+  }, [isComplete, submitted, submitMutation, form])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -92,8 +115,8 @@ export function FormRunnerPage() {
   if (error || !form) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-background px-6">
-        <h1 className="text-2xl font-bold text-foreground">Formulario nao encontrado</h1>
-        <p className="mt-2 text-muted-foreground">Este formulario nao existe ou nao esta publicado.</p>
+        <h1 className="text-2xl font-bold text-foreground">Formulário não encontrado</h1>
+        <p className="mt-2 text-muted-foreground">Este formulário não existe ou não está publicado.</p>
       </div>
     )
   }
@@ -145,7 +168,12 @@ export function FormRunnerPage() {
             node={currentNode}
             value={answers[currentNode.id] ?? null}
             error={errors[currentNode.id] ?? ''}
-            onChange={(value: AnswerValue) => setAnswer(currentNode.id, value)}
+            onChange={(value: AnswerValue) => {
+              setAnswer(currentNode.id, value)
+              if (form && value !== null && value !== undefined && value !== '') {
+                tracker.trackQuestionAnswered(form.id, currentNode.id)
+              }
+            }}
             onSubmit={next}
             prefillName={getPrefillFromAnswers(flow, answers, 'short_text')}
             prefillEmail={getPrefillFromAnswers(flow, answers, 'email')}

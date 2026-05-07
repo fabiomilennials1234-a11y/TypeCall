@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, User, Mail, Clock } from 'lucide-react'
+import { ArrowLeft, User, Mail, Clock, AlertCircle } from 'lucide-react'
 
 import * as responsesApi from '@/api/endpoints/responses'
 import { useFormQuery } from '@/hooks/useForms'
@@ -17,7 +17,7 @@ export function ResponsesPage() {
   const navigate = useNavigate()
   const { data: form } = useFormQuery(id!)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['responses', id],
     queryFn: () => responsesApi.listResponses(id!),
     enabled: !!id,
@@ -45,6 +45,14 @@ export function ResponsesPage() {
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {isError && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <h2 className="mt-4 text-lg font-medium">Erro ao carregar respostas</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Tente recarregar a página.</p>
         </div>
       )}
 

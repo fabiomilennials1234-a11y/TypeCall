@@ -17,6 +17,7 @@ type ResponseRepository interface {
 	Create(ctx context.Context, resp *domain.Response) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Response, error)
 	List(ctx context.Context, params domain.ListResponsesParams) (*domain.ListResponsesResult, error)
+	ListByForm(ctx context.Context, formID uuid.UUID, limit int) ([]domain.Response, error)
 	CreateAnswers(ctx context.Context, answers []domain.ResponseAnswer) error
 	GetAnswersByResponseID(ctx context.Context, responseID uuid.UUID) ([]domain.ResponseAnswer, error)
 }
@@ -183,6 +184,41 @@ func (r *responseRepository) GetAnswersByResponseID(ctx context.Context, respons
 		answers = append(answers, a)
 	}
 	return answers, nil
+}
+
+func (r *responseRepository) ListByForm(ctx context.Context, formID uuid.UUID, limit int) ([]domain.Response, error) {
+	conn := db.Conn(ctx, r.pool)
+	if limit <= 0 || limit > 10000 {
+		limit = 1000
+	}
+	rows, err := conn.Query(ctx,
+		`SELECT id, form_id, form_version_id, organization_id,
+			respondent_email, respondent_name, status, metadata,
+			started_at, completed_at, created_at
+		 FROM responses
+		 WHERE form_id = $1
+		 ORDER BY created_at DESC
+		 LIMIT $2`,
+		formID, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("ResponseRepository.ListByForm: %w", err)
+	}
+	defer rows.Close()
+
+	var responses []domain.Response
+	for rows.Next() {
+		var resp domain.Response
+		if err := rows.Scan(
+			&resp.ID, &resp.FormID, &resp.FormVersionID, &resp.OrganizationID,
+			&resp.RespondentEmail, &resp.RespondentName, &resp.Status, &resp.Metadata,
+			&resp.StartedAt, &resp.CompletedAt, &resp.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("ResponseRepository.ListByForm: scan: %w", err)
+		}
+		responses = append(responses, resp)
+	}
+	return responses, nil
 }
 
 // PublicFormRepository — no RLS, uses direct pool query

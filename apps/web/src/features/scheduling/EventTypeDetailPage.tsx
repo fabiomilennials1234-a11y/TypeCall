@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Trash2, Clock, MapPin, Save } from 'lucide-react'
+import { ArrowLeft, Trash2, Clock, MapPin, Save, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'
@@ -13,7 +13,7 @@ export function EventTypeDetailPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const { data: et, isLoading } = useQuery({
+  const { data: et, isLoading, isError } = useQuery({
     queryKey: ['event-type', eventTypeId],
     queryFn: () => eventTypesApi.getEventType(eventTypeId!),
     enabled: !!eventTypeId,
@@ -37,10 +37,12 @@ export function EventTypeDetailPage() {
     )
   }
 
-  if (!et) {
+  if (isError || !et) {
     return (
-      <div className="p-6 lg:p-8">
-        <p className="text-muted-foreground">Tipo de reuniao nao encontrado</p>
+      <div className="flex flex-col items-center justify-center p-12">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <h2 className="mt-4 text-lg font-medium">Tipo de reunião não encontrado</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Este agendamento não existe ou foi removido.</p>
       </div>
     )
   }

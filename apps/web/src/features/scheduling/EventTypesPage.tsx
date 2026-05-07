@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Calendar, Clock, Trash2 } from 'lucide-react'
+import { Plus, Calendar, Clock, Trash2, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'
@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn'
 export function EventTypesPage() {
   const [showCreate, setShowCreate] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['event-types'],
     queryFn: () => eventTypesApi.listEventTypes(),
   })
@@ -33,6 +33,14 @@ export function EventTypesPage() {
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {isError && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <h2 className="mt-4 text-lg font-medium">Erro ao carregar agendamentos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Tente recarregar a página.</p>
         </div>
       )}
 

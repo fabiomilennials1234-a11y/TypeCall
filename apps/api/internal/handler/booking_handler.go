@@ -175,17 +175,16 @@ func (h *PublicBookingHandler) GetSlots(w http.ResponseWriter, r *http.Request) 
 
 func (h *PublicBookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 	var input domain.CreateBookingInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body", "INVALID_INPUT")
+	if !decodeBody(w, r, &input) {
 		return
 	}
 
-	if input.AttendeeName == "" || input.AttendeeEmail == "" {
-		writeError(w, http.StatusBadRequest, "name and email are required", "MISSING_FIELDS")
-		return
-	}
-	if input.StartTime.IsZero() {
-		writeError(w, http.StatusBadRequest, "start_time is required", "MISSING_FIELDS")
+	v := &Validator{}
+	v.Required("attendee_name", input.AttendeeName)
+	v.Email("attendee_email", input.AttendeeEmail)
+	v.FutureTime("start_time", input.StartTime)
+	if v.HasErrors() {
+		v.WriteResponse(w)
 		return
 	}
 

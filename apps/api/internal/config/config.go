@@ -14,6 +14,7 @@ type Config struct {
 	JWTSecret     string
 	CSRFSecret    string
 	EncryptionKey string
+	CORSOrigins   string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +31,7 @@ func Load() (*Config, error) {
 		JWTSecret:     getEnv("JWT_SECRET", ""),
 		CSRFSecret:    getEnv("CSRF_SECRET", ""),
 		EncryptionKey: getEnv("ENCRYPTION_KEY", ""),
+		CORSOrigins:   getEnv("CORS_ORIGINS", ""),
 	}
 
 	if cfg.DatabaseURL == "" {

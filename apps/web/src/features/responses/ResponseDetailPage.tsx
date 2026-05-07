@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 
 import * as responsesApi from '@/api/endpoints/responses'
 
@@ -8,16 +8,26 @@ export function ResponseDetailPage() {
   const { id, responseId } = useParams<{ id: string; responseId: string }>()
   const navigate = useNavigate()
 
-  const { data: resp, isLoading } = useQuery({
+  const { data: resp, isLoading, isError } = useQuery({
     queryKey: ['response', id, responseId],
     queryFn: () => responsesApi.getResponse(id!, responseId!),
     enabled: !!id && !!responseId,
   })
 
-  if (isLoading || !resp) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (isError || !resp) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <h2 className="mt-4 text-lg font-medium">Resposta não encontrada</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Esta resposta não existe ou foi removida.</p>
       </div>
     )
   }

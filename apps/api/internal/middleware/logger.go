@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/typecall/api/internal/observability"
 )
 
 type wrappedWriter struct {
@@ -33,6 +34,14 @@ func Logger(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 		requestID := GetRequestID(r.Context())
+
+		observability.IncrementRequests()
+		if wrapped.statusCode >= 500 {
+			observability.Increment5xx()
+		}
+		if wrapped.statusCode >= 400 {
+			observability.IncrementErrors()
+		}
 
 		event := log.Info()
 		if wrapped.statusCode >= 500 {
