@@ -8,6 +8,8 @@ import { useFormQuery, usePublishFormMutation } from '@/hooks/useForms'
 import { FormStatusBadge } from '@/features/forms/components/FormStatusBadge'
 import { useBuilder } from '@/features/builder/useBuilder'
 import { useAutoSave } from '@/features/builder/useAutoSave'
+import { useThemeAutoSave } from '@/features/builder/useThemeAutoSave'
+import { defaultTheme, readTheme, type FormTheme } from '@/features/builder/lib/theme'
 import { BlockPalette } from '@/features/builder/components/BlockPalette'
 import { BuilderCanvas } from '@/features/builder/components/BuilderCanvas'
 import { PropertyPanel } from '@/features/builder/components/PropertyPanel'
@@ -20,6 +22,8 @@ export function FormBuilderPage() {
   const publishMutation = usePublishFormMutation(id!)
   const [showPreview, setShowPreview] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [theme, setTheme] = useState<FormTheme>(defaultTheme())
+  const [themeDirty, setThemeDirty] = useState(false)
 
   const {
     flow,
@@ -45,8 +49,21 @@ export function FormBuilderPage() {
     }
   }, [form, setFlow])
 
+  useEffect(() => {
+    if (form?.theme) {
+      setTheme(readTheme(form.theme))
+      setThemeDirty(false)
+    }
+  }, [form])
+
   useAutoSave(id!, flow, isDirty, () => {
     markClean()
+    setSaveStatus('saved')
+    setTimeout(() => setSaveStatus('idle'), 2000)
+  })
+
+  useThemeAutoSave(id!, theme, themeDirty, () => {
+    setThemeDirty(false)
     setSaveStatus('saved')
     setTimeout(() => setSaveStatus('idle'), 2000)
   })
@@ -86,7 +103,7 @@ export function FormBuilderPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <SaveIndicator status={saveStatus} isDirty={isDirty} />
+          <SaveIndicator status={saveStatus} isDirty={isDirty || themeDirty} />
 
           <Button
             variant="ghost"
@@ -128,6 +145,12 @@ export function FormBuilderPage() {
             node={selectedNode}
             onUpdate={updateNode}
             onClose={() => selectNode(null)}
+            formId={id!}
+            theme={theme}
+            onThemeChange={(next) => {
+              setTheme(next)
+              setThemeDirty(true)
+            }}
           />
         )}
       </div>

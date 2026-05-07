@@ -8,19 +8,21 @@ import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'
 import { cn } from '@/lib/cn'
 
+import type { FormTheme } from '../lib/theme'
+import { ThemePanel } from './ThemePanel'
+
 interface PropertyPanelProps {
   node: FlowNode | null
   onUpdate: (nodeId: string, data: QuestionData) => void
   onClose: () => void
+  formId: string
+  theme: FormTheme
+  onThemeChange: (next: FormTheme) => void
 }
 
-export function PropertyPanel({ node, onUpdate, onClose }: PropertyPanelProps) {
+export function PropertyPanel({ node, onUpdate, onClose, formId, theme, onThemeChange }: PropertyPanelProps) {
   if (!node) {
-    return (
-      <div className="flex h-full w-72 items-center justify-center border-l border-border bg-card">
-        <p className="text-sm text-muted-foreground">Selecione um bloco para editar</p>
-      </div>
-    )
+    return <ThemePanel formId={formId} theme={theme} onChange={onThemeChange} />
   }
 
   return (
