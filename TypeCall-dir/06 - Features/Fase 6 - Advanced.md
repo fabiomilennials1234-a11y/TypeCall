@@ -17,6 +17,47 @@ Funcionalidades avancadas que expandem o TypeCall de MVP para plataforma complet
 
 ---
 
+## Iteracao Pos-MVP — Form Theming (visual customization)
+
+**Status**: entregue 2026-05-07 (branch `feature/form-theming`)
+
+Forms agora customizaveis visualmente via ThemePanel no builder. 7 controles curados, padrao Stripe Checkout / Tally.
+
+### Capacidades
+
+- **Background**: cor solida, gradiente (2 stops + angulo), imagem (upload ate 5MB)
+- **Cores**: primaria (CTAs), texto, card
+- **Tipografia**: 8 Google Fonts curadas (Inter, Geist, Manrope, Space Grotesk, Playfair Display, Cormorant Garamond, Crimson Pro, JetBrains Mono) com preview real no picker
+- **Forma**: 5 niveis de border radius + alinhamento (esquerda/centro)
+- **Auto-save**: debounce 1.5s, PATCH /forms/:id
+- **Aplicado**: FormRunnerPage (publico) + Embed runner
+
+### Sprints (1-12)
+
+1. `feat(db)`: tabela form_assets + RLS
+2. `feat(api)`: AssetRepository/Service/Handler com mime+size validation, static `/uploads/*`
+3. `feat(api)`: validateThemeJSON com DisallowUnknownFields + enums + regex CSS color
+4. `test(api)`: cobertura asset upload + theme validation
+5. `feat(web)`: lista curada de fontes + Google Fonts link
+6. `feat(web)`: helpers themeToCss + defaultTheme + readTheme + isFormTheme
+7. `feat(web)`: ThemePanel + 6 sub-componentes (Background, Color, Font, Radius, Alignment, AssetUploader)
+8. `feat(web)`: integra ThemePanel em PropertyPanel quando node === null + useThemeAutoSave
+9. `feat(web)`: aplica theme em FormRunnerPage publico
+10. `feat(embed)`: aplica theme + carrega Google Fonts no embed
+11. `test(web)`: 13 tests vitest
+12. `docs(vault)`: D032 + ADR-006
+
+### Decisoes formais
+
+- [[../07 - Decisoes/ADR-006-form-asset-storage-filesystem]] — armazenamento de assets em filesystem (vs S3/bytea)
+- D032 em STATE.md
+
+### Limitacao
+
+`theme.ts` duplicado entre `apps/web/src/features/builder/lib/theme.ts` e `apps/embed/src/theme.ts`. Consolidar em `packages/shared` quando alguma logica adicional comecar a divergir.
+
+---
+
 ## Iteracao Pos-MVP — Google OAuth + Google Calendar Sync
 
 **Status**: entregue 2026-05-07 (branch `feature/google-integration`)

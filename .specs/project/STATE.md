@@ -130,6 +130,24 @@ loader.js detecta `[data-typecall-form]` no DOM e inicializa automaticamente. AP
 
 Eventos de analytics (view, start, question_seen, question_answered, submit, abandon) coletados no frontend (runner + embed) e enviados em batch pro /api/v1/public/events (publico, sem auth). Dedup via event_id (UUID) com ON CONFLICT DO NOTHING. Batch size 5 ou flush a cada 2s. Abandon usa navigator.sendBeacon pra garantir envio no beforeunload. Materialized view form_daily_metrics atualizada via REFRESH CONCURRENTLY.
 
+### D032: Form Theming editavel (cores, fontes, fundo, forma) (2026-05-07)
+
+Sprints 1-12 entregues em branch feature/form-theming.
+
+**Schema**: reusa `forms.theme` JSONB existente (migration 0002, vazio ate hoje). Shape `FormTheme` documentado em `apps/web/src/features/builder/lib/theme.ts`. Validado server-side em form_handler com DisallowUnknownFields + enums + regex CSS color (previne injection arbitraria).
+
+**Storage de assets**: nova tabela `form_assets` (migration 0008) + filesystem `data/uploads/{org_id}/{uuid}.{ext}`. Endpoint POST /api/v1/forms/:formID/assets (multipart, image/* up to 5MB). Static handler em /uploads/* serve em dev; nginx em prod (montar volume `data/uploads`).
+
+**Fontes**: lista curada de 8 Google Fonts (Inter, Geist, Manrope, Space Grotesk, Playfair Display, Cormorant Garamond, Crimson Pro, JetBrains Mono) carregadas via single `<link>` em `index.html` com display=swap. Decisao curada > open: controle de qualidade (padrao Vercel/Linear).
+
+**Background**: 3 modos — color (color picker), gradient (2 stops + angle slider 0-360 + preview live), image (drag-drop upload). Discriminated union no TS.
+
+**UI Builder**: ThemePanel renderizado no PropertyPanel quando `node === null` (substitui placeholder). 4 sections (Fundo, Cores, Tipografia, Forma). Auto-save dedicado debounce 1.5s via useThemeAutoSave (PATCH /forms/:id).
+
+**Aplicacao runtime**: themeToCss(theme) retorna CSSProperties com vars `--form-primary`, `--form-text`, `--form-card`, `--form-radius`, `--form-heading-font`, `--form-body-font` + background computado. FormRunnerPage e EmbedApp aplicam ambos. Forms antigos sem theme caem em defaultTheme — render visualmente identico ao anterior (nao regride).
+
+**Limitacao conhecida**: theme.ts duplicado entre apps/web e apps/embed. Consolidar em packages/shared em iteracao futura.
+
 ### D031: Integracao Google OAuth + Google Calendar (2026-05-07)
 
 D023 adiou GCal na Fase 3. Agora trazido. Sprint A-H entregues em branch feature/google-integration.
