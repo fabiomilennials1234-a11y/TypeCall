@@ -127,8 +127,15 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 		cfg.CSRFSecret,
 		encKey,
 	)
+	googleSigninSvc := service.NewGoogleSigninService(
+		authSvc,
+		integrationRepo,
+		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleSigninRedirectURI,
+		cfg.CSRFSecret,
+		encKey,
+	)
 
-	authHandler := handler.NewAuthHandler(authSvc, cfg.IsProduction())
+	authHandler := handler.NewAuthHandler(authSvc, googleSigninSvc, cfg.WebBaseURL, cfg.IsProduction())
 	formHandler := handler.NewFormHandler(formSvc)
 	responseHandler := handler.NewResponseHandler(responseSvc)
 	publicHandler := handler.NewPublicHandler(responseSvc)
@@ -179,6 +186,9 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
 			r.Post("/logout", authHandler.Logout)
+
+			r.Get("/google/authorize", authHandler.GoogleSigninAuthorize)
+			r.Get("/google/callback", authHandler.GoogleSigninCallback)
 
 			r.Group(func(r chi.Router) {
 				r.Use(mw.Auth(authSvc))

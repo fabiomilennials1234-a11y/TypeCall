@@ -11,12 +11,14 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc service.AuthService
-	secure  bool
+	authSvc      service.AuthService
+	googleSignin service.GoogleSigninFlow
+	webBaseURL   string
+	secure       bool
 }
 
-func NewAuthHandler(authSvc service.AuthService, secure bool) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc, secure: secure}
+func NewAuthHandler(authSvc service.AuthService, googleSignin service.GoogleSigninFlow, webBaseURL string, secure bool) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, googleSignin: googleSignin, webBaseURL: webBaseURL, secure: secure}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +122,49 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.authSvc.Logout(r.Context(), rawToken)
 	h.clearAuthCookies(w)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AuthHandler) GoogleSigninAuthorize(w http.ResponseWriter, r *http.Request) {
+	url, err := h.googleSignin.GenerateSigninURL(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to build authorize url", "INTERNAL_ERROR")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"authorize_url": url})
+}
+
+func (h *AuthHandler) GoogleSigninCallback(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	if q.Get("error") != "" {
+		h.redirectToWebLogin(w, r, "oauth_denied")
+		return
+	}
+	code := q.Get("code")
+	state := q.Get("state")
+	if code == "" || state == "" {
+		h.redirectToWebLogin(w, r, "missing_params")
+		return
+	}
+
+	_, tokens, err := h.googleSignin.HandleSigninCallback(r.Context(), code, state)
+	if err != nil {
+		reason := "callback_failed"
+		if errors.Is(err, service.ErrInvalidOAuthState) {
+			reason = "invalid_state"
+		} else if errors.Is(err, service.ErrUserNotActive) {
+			reason = "account_disabled"
+		}
+		h.redirectToWebLogin(w, r, reason)
+		return
+	}
+
+	h.setAuthCookies(w, tokens)
+	http.Redirect(w, r, h.webBaseURL+"/", http.StatusFound)
+}
+
+func (h *AuthHandler) redirectToWebLogin(w http.ResponseWriter, r *http.Request, reason string) {
+	target := h.webBaseURL + "/login?error=" + reason
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {

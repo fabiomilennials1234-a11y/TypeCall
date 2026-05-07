@@ -16,10 +16,11 @@ type Config struct {
 	CSRFSecret         string
 	EncryptionKey      string
 	CORSOrigins        string
-	GoogleClientID     string
-	GoogleClientSecret string
-	GoogleRedirectURI  string
-	WebBaseURL         string
+	GoogleClientID         string
+	GoogleClientSecret     string
+	GoogleRedirectURI      string
+	GoogleSigninRedirectURI string
+	WebBaseURL             string
 }
 
 func Load() (*Config, error) {
@@ -39,8 +40,9 @@ func Load() (*Config, error) {
 		CORSOrigins:        getEnv("CORS_ORIGINS", ""),
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURI:  getEnv("GOOGLE_REDIRECT_URI", ""),
-		WebBaseURL:         getEnv("WEB_BASE_URL", "http://localhost:5173"),
+		GoogleRedirectURI:      getEnv("GOOGLE_REDIRECT_URI", ""),
+		GoogleSigninRedirectURI: getEnv("GOOGLE_SIGNIN_REDIRECT_URI", ""),
+		WebBaseURL:             getEnv("WEB_BASE_URL", "http://localhost:5173"),
 	}
 
 	if cfg.DatabaseURL == "" {
