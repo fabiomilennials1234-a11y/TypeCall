@@ -5,6 +5,8 @@ import { ProtectedRoute, PublicRoute } from '@/contexts/auth'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { SalesDashboard } from '@/features/analytics/SalesDashboard'
+import { SettingsPage } from '@/features/settings/SettingsPage'
 import { FormsPage } from '@/features/forms/FormsPage'
 import { FormDetailPage } from '@/features/forms/FormDetailPage'
 import { FormBuilderPage } from '@/features/builder/FormBuilderPage'
@@ -34,7 +36,9 @@ export default function App() {
       </Route>
       <Route element={<ErrorBoundary><ProtectedRoute /></ErrorBoundary>}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/" element={<SalesDashboard />} />
+          <Route path="/dashboard-old" element={<DashboardPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/forms" element={<FormsPage />} />
           <Route path="/forms/:id" element={<FormDetailPage />} />
           <Route path="/forms/:id/builder" element={<FormBuilderPage />} />

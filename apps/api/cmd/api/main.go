@@ -74,6 +74,23 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// Refresh sales_daily_metrics a cada 1h em background.
+	bgRepo := repository.NewAnalyticsRepository(pool)
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := bgRepo.RefreshSalesDailyMetrics(context.Background()); err != nil {
+					log.Warn().Err(err).Msg("sales_daily_metrics refresh failed")
+				}
+			}
+		}
+	}()
+
 	go func() {
 		log.Info().
 			Int("port", cfg.Port).
@@ -118,6 +135,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	pubAnalyticsRepo := repository.NewPublicAnalyticsRepository(pool)
 	integrationRepo := repository.NewIntegrationRepository(pool)
 	assetRepo := repository.NewAssetRepository(pool)
+	abTestRepo := repository.NewABTestRepository(pool)
 
 	encKey, err := cryptohelper.DeriveKey(cfg.EncryptionKey)
 	if err != nil {
@@ -140,6 +158,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookSvc := service.NewWebhookService(webhookRepo)
 	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, userRepo, webhookSvc, gcalProvider)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
+	service.WireABTestRepo(analyticsSvc, abTestRepo)
 	assetSvc := service.NewAssetService(assetRepo, "data/uploads")
 
 	integrationSvc := service.NewIntegrationService(
@@ -169,6 +188,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	integrationHandler := handler.NewIntegrationHandler(integrationSvc, cfg.WebBaseURL)
 	gcalWebhookHandler := handler.NewGCalWebhookHandler()
 	assetHandler := handler.NewAssetHandler(assetSvc)
+	salesAnalyticsHandler := handler.NewSalesAnalyticsHandler(analyticsSvc, abTestRepo)
 
 	// Sales Deals modules
 	qualificationRepo := qualification.NewRepository(pool)
@@ -350,6 +370,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Get("/forms/{formID}/dropoff", analyticsHandler.GetStepDropoff)
 			r.Get("/forms/{formID}/export", analyticsHandler.ExportCSV)
 			r.Post("/refresh", analyticsHandler.RefreshMetrics)
+
+			r.Get("/sales-overview", salesAnalyticsHandler.Overview)
+			r.Get("/ab-test", salesAnalyticsHandler.ABTest)
+		})
+
+		r.Route("/funnels", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/ab-test", salesAnalyticsHandler.CreateABTest)
 		})
 
 		r.Route("/webhooks", func(r chi.Router) {

@@ -1,21 +1,29 @@
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, LayoutDashboard, LogOut, Zap, Calendar, Video, Webhook, Code2, BarChart3, Settings, Kanban, Users } from 'lucide-react'
+import { FileText, LogOut, Zap, Calendar, BarChart3, Settings, Kanban, Users } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/contexts/auth'
 import { useLogoutMutation } from '@/hooks/useAuth'
 
-const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { label: 'Formularios', icon: FileText, path: '/forms' },
-  { label: 'Agendamentos', icon: Calendar, path: '/scheduling' },
-  { label: 'Reunioes', icon: Video, path: '/bookings' },
-  { label: 'Kanban', icon: Kanban, path: '/kanban' },
-  { label: 'Vendedores', icon: Users, path: '/sellers' },
-  { label: 'Webhook', icon: Webhook, path: '/webhooks' },
-  { label: 'Embed', icon: Code2, path: '/embed' },
-  { label: 'Analytics', icon: BarChart3, path: '/analytics' },
-  { label: 'Integracoes', icon: Settings, path: '/settings/integrations' },
+type Role = 'admin' | 'member' | 'master' | 'seller'
+
+const adminNav = [
+  { label: 'Dashboard',  icon: BarChart3,        path: '/' },
+  { label: 'Funis',      icon: FileText,         path: '/forms' },
+  { label: 'Kanban',     icon: Kanban,           path: '/kanban' },
+  { label: 'Reunioes',   icon: Calendar,         path: '/bookings' },
+  { label: 'Vendedores', icon: Users,            path: '/sellers' },
+  { label: 'Configuracoes', icon: Settings,      path: '/settings' },
 ]
+
+const sellerNav = [
+  { label: 'Kanban',          icon: Kanban,   path: '/kanban' },
+  { label: 'Minhas reunioes', icon: Calendar, path: '/bookings' },
+]
+
+function navForRole(role: Role) {
+  if (role === 'seller') return sellerNav
+  return adminNav
+}
 
 export function Sidebar() {
   const location = useLocation()
@@ -42,7 +50,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 px-2 py-2">
-        {navItems.map((item) => {
+        {navForRole(user.role).map((item) => {
           const isActive = location.pathname === item.path ||
             (item.path !== '/' && location.pathname.startsWith(item.path))
           return (

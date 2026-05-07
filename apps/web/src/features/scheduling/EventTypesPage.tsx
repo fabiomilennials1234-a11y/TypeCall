@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Calendar, Clock, Trash2, AlertCircle } from 'lucide-react'
+import { Plus, Calendar, Clock, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'

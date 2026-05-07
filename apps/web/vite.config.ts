@@ -25,6 +25,7 @@ export default defineConfig({
       },
     },
   },
+  // @ts-expect-error vitest test config injection on Vite 8
   test: {
     globals: true,
     environment: 'jsdom',

@@ -585,6 +585,18 @@ func (m *mockAnalyticsRepository) RefreshMaterializedView(ctx context.Context) e
 	return nil
 }
 
+func (m *mockAnalyticsRepository) GetSalesOverview(ctx context.Context, orgID uuid.UUID, from time.Time) (*domain.SalesOverview, error) {
+	return &domain.SalesOverview{ByTag: map[string]int{}}, nil
+}
+
+func (m *mockAnalyticsRepository) RefreshSalesDailyMetrics(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockAnalyticsRepository) GetFormFunnel(ctx context.Context, orgID, formID uuid.UUID, from time.Time) (*domain.ABTestForm, error) {
+	return &domain.ABTestForm{FormID: formID.String()}, nil
+}
+
 // --- 12. mockPublicAnalyticsRepository ---
 
 type mockPublicAnalyticsRepository struct {

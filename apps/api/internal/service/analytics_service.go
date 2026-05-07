@@ -20,12 +20,16 @@ type AnalyticsService interface {
 	GetStepDropoff(ctx context.Context, formID uuid.UUID, from, to time.Time) ([]domain.StepDropoff, error)
 	ExportCSV(ctx context.Context, formID uuid.UUID, from, to time.Time, w io.Writer) error
 	RefreshMetrics(ctx context.Context) error
+
+	GetSalesOverview(ctx context.Context, orgID uuid.UUID, period string) (*domain.SalesOverview, error)
+	GetABTest(ctx context.Context, orgID, abTestID uuid.UUID) (*domain.ABTestResult, error)
 }
 
 type analyticsService struct {
 	analyticsRepo repository.AnalyticsRepository
 	pubAnalytics  repository.PublicAnalyticsRepository
 	responseRepo  repository.ResponseRepository
+	abRepo        ABTestRepo
 }
 
 func NewAnalyticsService(
@@ -37,6 +41,14 @@ func NewAnalyticsService(
 		analyticsRepo: analyticsRepo,
 		pubAnalytics:  pubAnalytics,
 		responseRepo:  responseRepo,
+	}
+}
+
+// WireABTestRepo injeta o ABTestRepo apos construcao para evitar ciclo de
+// imports entre pacotes. main.go faz o type assert para conectar.
+func WireABTestRepo(svc AnalyticsService, repo ABTestRepo) {
+	if s, ok := svc.(*analyticsService); ok {
+		s.abRepo = repo
 	}
 }
 
@@ -139,4 +151,45 @@ func (s *analyticsService) RefreshMetrics(ctx context.Context) error {
 		return fmt.Errorf("AnalyticsService.RefreshMetrics: %w", err)
 	}
 	return nil
+}
+
+// --- Sales Deals --------------------------------------------------------
+
+func (s *analyticsService) GetSalesOverview(ctx context.Context, orgID uuid.UUID, period string) (*domain.SalesOverview, error) {
+	from := time.Now().AddDate(0, 0, -30)
+	switch period {
+	case "7d":
+		from = time.Now().AddDate(0, 0, -7)
+	case "90d":
+		from = time.Now().AddDate(0, 0, -90)
+	}
+	return s.analyticsRepo.GetSalesOverview(ctx, orgID, from)
+}
+
+// ABTestRepo is the minimal lookup needed by GetABTest. Implementado pelo
+// repository.ABTestRepository (novo arquivo).
+type ABTestRepo interface {
+	ListFormIDs(ctx context.Context, orgID, abTestID uuid.UUID) ([]uuid.UUID, error)
+	Create(ctx context.Context, orgID uuid.UUID, name string, formIDs []uuid.UUID) (uuid.UUID, error)
+}
+
+
+func (s *analyticsService) GetABTest(ctx context.Context, orgID, abTestID uuid.UUID) (*domain.ABTestResult, error) {
+	if s.abRepo == nil {
+		return &domain.ABTestResult{Forms: []domain.ABTestForm{}}, nil
+	}
+	formIDs, err := s.abRepo.ListFormIDs(ctx, orgID, abTestID)
+	if err != nil {
+		return nil, fmt.Errorf("AnalyticsService.GetABTest: %w", err)
+	}
+	from := time.Now().AddDate(0, 0, -30)
+	out := &domain.ABTestResult{Forms: make([]domain.ABTestForm, 0, len(formIDs))}
+	for _, fid := range formIDs {
+		row, err := s.analyticsRepo.GetFormFunnel(ctx, orgID, fid, from)
+		if err != nil {
+			continue
+		}
+		out.Forms = append(out.Forms, *row)
+	}
+	return out, nil
 }
