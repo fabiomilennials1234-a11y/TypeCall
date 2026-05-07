@@ -1,7 +1,17 @@
-import type { FlowNode, AnswerValue, Choice, ScheduleNodeData } from '@typecall/flow-engine'
+import type {
+  FlowNode,
+  AnswerValue,
+  Choice,
+  ScheduleNodeData,
+  QualificationNodeData,
+  QualificationChoice,
+  SocialProofNodeData,
+  AlignmentVideoNodeData,
+} from '@typecall/flow-engine'
 import { ScheduleStep } from '@/features/runner/ScheduleStep'
 import { cn } from '@/lib/cn'
 import { getFontStack, type FontKey } from '@/features/builder/lib/fonts'
+import { toEmbedUrl } from '@/features/builder/components/blocks/AlignmentVideoBlock'
 
 interface RunnerStepProps {
   node: FlowNode
@@ -62,8 +72,30 @@ export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName
           choices={(data.props as { choices: Choice[] }).choices}
           value={String(value ?? '')}
           error={error}
-          onChange={onChange}
+          onChange={(v) => {
+            onChange(v)
+            // Auto-advance no proximo tick para o reducer commitar a resposta antes
+            setTimeout(() => onSubmit(), 60)
+          }}
         />
+      )}
+
+      {type === 'qualification' && (
+        <QualificationInput
+          data={data.props as QualificationNodeData}
+          value={value as Record<string, string> | null}
+          error={error}
+          onChange={onChange}
+          onSubmit={onSubmit}
+        />
+      )}
+
+      {type === 'social_proof' && (
+        <SocialProofView data={data.props as SocialProofNodeData} onContinue={onSubmit} />
+      )}
+
+      {type === 'alignment_video' && (
+        <AlignmentVideoView data={data.props as AlignmentVideoNodeData} onContinue={onSubmit} />
       )}
 
       {type === 'schedule' && (
@@ -125,6 +157,135 @@ function TextInput({
         error ? 'border-destructive' : 'border-border focus:border-primary'
       )}
     />
+  )
+}
+
+function QualificationInput({
+  data,
+  value,
+  error,
+  onChange,
+  onSubmit,
+}: {
+  data: QualificationNodeData
+  value: Record<string, string> | null
+  error: string
+  onChange: (value: AnswerValue) => void
+  onSubmit: () => void
+}) {
+  const answers = value ?? {}
+  const questions = data.questions ?? []
+  const answeredAll = questions.every((q) => Boolean(answers[q.id]))
+
+  function pick(qID: string, choice: QualificationChoice) {
+    const next = { ...answers, [qID]: choice.value }
+    onChange(next as unknown as AnswerValue)
+    if (questions.every((q) => (q.id === qID ? next[qID] : Boolean(next[q.id])))) {
+      setTimeout(() => onSubmit(), 100)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {questions.map((q, qIdx) => (
+        <div key={q.id} className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--form-primary)]/15 text-xs font-semibold text-[color:var(--form-primary)]">
+              {qIdx + 1}
+            </span>
+            <span className="text-base font-medium">{q.label}</span>
+          </div>
+          <div className="space-y-1.5 pl-8">
+            {q.choices.map((choice) => {
+              const selected = answers[q.id] === choice.value
+              return (
+                <button
+                  key={choice.id}
+                  onClick={() => pick(q.id, choice)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left transition-all',
+                    selected
+                      ? 'border-[color:var(--form-primary)] bg-[color:var(--form-primary)]/5'
+                      : 'border-border opacity-80 hover:opacity-100 hover:border-[color:var(--form-primary)]/40',
+                  )}
+                >
+                  <span className={cn(
+                    'h-2 w-2 rounded-full',
+                    selected ? 'bg-[color:var(--form-primary)]' : 'bg-muted-foreground/30',
+                  )} />
+                  <span className="text-sm">{choice.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      {!answeredAll && questions.length > 0 && (
+        <p className="text-xs opacity-50">Responda todas para avancar.</p>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  )
+}
+
+function SocialProofView({ data, onContinue }: { data: SocialProofNodeData; onContinue: () => void }) {
+  const media = data.mediaUrls ?? []
+  return (
+    <div className="space-y-5">
+      {media.length > 0 && (
+        <div className={cn('grid gap-3', media.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
+          {media.map((url, idx) => (
+            <div key={url + idx} className="overflow-hidden rounded-xl border border-border">
+              {/\.(mp4|webm)$/i.test(url) ? (
+                <video src={url} controls className="h-48 w-full object-cover" />
+              ) : (
+                <img src={url} alt="" className="h-48 w-full object-cover" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {data.differentialText && (
+        <p className="text-base leading-relaxed opacity-90">{data.differentialText}</p>
+      )}
+      <button
+        onClick={onContinue}
+        className="rounded-lg px-8 py-3 text-sm font-medium text-white"
+        style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+      >
+        Continuar
+      </button>
+    </div>
+  )
+}
+
+function AlignmentVideoView({ data, onContinue }: { data: AlignmentVideoNodeData; onContinue: () => void }) {
+  const embed = toEmbedUrl(data.videoUrl ?? '')
+  return (
+    <div className="space-y-5">
+      {embed ? (
+        <div className="overflow-hidden rounded-xl border border-border bg-black">
+          <iframe
+            src={embed}
+            className="aspect-video w-full"
+            allowFullScreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          />
+        </div>
+      ) : (
+        <p className="text-sm opacity-70">Video nao disponivel.</p>
+      )}
+      {data.supportText && (
+        <p className="text-sm leading-relaxed opacity-80">{data.supportText}</p>
+      )}
+      <button
+        onClick={onContinue}
+        className="rounded-lg px-8 py-3 text-sm font-medium text-white"
+        style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+      >
+        Continuar
+      </button>
+    </div>
   )
 }
 

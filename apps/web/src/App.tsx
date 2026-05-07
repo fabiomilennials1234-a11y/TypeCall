@@ -18,6 +18,7 @@ import { WebhooksPage } from '@/features/webhooks/WebhooksPage'
 import { EmbedPage } from '@/features/embed/EmbedPage'
 import { AnalyticsPage } from '@/features/analytics/AnalyticsPage'
 import { IntegrationsPage } from '@/features/settings/IntegrationsPage'
+import { QualificationRulesPage } from '@/features/qualification/QualificationRulesPage'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/forms/:id/builder" element={<FormBuilderPage />} />
           <Route path="/forms/:id/responses" element={<ResponsesPage />} />
           <Route path="/forms/:id/responses/:responseId" element={<ResponseDetailPage />} />
+          <Route path="/forms/:id/qualification" element={<QualificationRulesPage />} />
           <Route path="/scheduling" element={<EventTypesPage />} />
           <Route path="/scheduling/:eventTypeId" element={<EventTypeDetailPage />} />
           <Route path="/bookings" element={<BookingsPage />} />

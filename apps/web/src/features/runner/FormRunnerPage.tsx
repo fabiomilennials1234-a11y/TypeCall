@@ -10,6 +10,8 @@ import { RunnerStep } from '@/features/runner/RunnerStep'
 import { cn } from '@/lib/cn'
 import * as tracker from '@/features/runner/tracker'
 import { readTheme, themeToCss } from '@/features/builder/lib/theme'
+import { useMetaPixel } from '@/features/runner/useMetaPixel'
+import { useQualification } from '@/features/runner/useQualification'
 
 export function FormRunnerPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -37,6 +39,8 @@ export function FormRunnerPage() {
 
   const [submitted, setSubmitted] = useState(false)
   const startedRef = useRef(false)
+  const { trackLead, trackSchedule, getUTMs } = useMetaPixel()
+  const { score: scoreQualification } = useQualification(form?.settings)
 
   const submitMutation = useMutation({
     mutationFn: () => {
@@ -75,6 +79,29 @@ export function FormRunnerPage() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [form, submitted])
+
+  // Pixel: dispara Lead na primeira resposta + Schedule quando schedule node ganha resposta
+  const leadFiredRef = useRef(false)
+  const scheduleFiredRef = useRef(false)
+  useEffect(() => {
+    const hasAnyAnswer = Object.values(answers).some(
+      (v) => v !== null && v !== undefined && v !== '',
+    )
+    if (hasAnyAnswer && !leadFiredRef.current) {
+      leadFiredRef.current = true
+      trackLead({ form_id: form?.id })
+    }
+    const scheduleNode = flow.nodes.find((n) => n.type === 'schedule')
+    if (scheduleNode && answers[scheduleNode.id] && !scheduleFiredRef.current) {
+      scheduleFiredRef.current = true
+      trackSchedule({ form_id: form?.id })
+    }
+  }, [answers, flow.nodes, form, trackLead, trackSchedule])
+
+  // Score qualification block on submit (best-effort; needs response_id which
+  // only exists after submitMutation.success in current backend design).
+  void scoreQualification
+  void getUTMs
 
   useEffect(() => {
     if (currentNode && form) {
@@ -168,7 +195,7 @@ export function FormRunnerPage() {
           className={cn(
             'w-full max-w-lg',
             'animate-in fade-in duration-300',
-            direction === 'forward' ? 'slide-in-from-bottom-4' : 'slide-in-from-top-4'
+            direction === 'forward' ? 'slide-in-from-right-8' : 'slide-in-from-left-8'
           )}
         >
           <RunnerStep

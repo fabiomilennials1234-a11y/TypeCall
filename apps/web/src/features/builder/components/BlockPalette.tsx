@@ -1,4 +1,4 @@
-import { Type, Mail, List, AlignLeft, CheckSquare, GripVertical, CalendarClock } from 'lucide-react'
+import { Type, Mail, List, AlignLeft, CheckSquare, GripVertical, CalendarClock, Award, Sparkles, Video } from 'lucide-react'
 import type { StepType } from '@typecall/flow-engine'
 import { cn } from '@/lib/cn'
 
@@ -31,6 +31,14 @@ const blockGroups: { category: string; blocks: BlockDef[] }[] = [
     category: 'Especial',
     blocks: [
       { type: 'schedule', label: 'Agendamento', icon: <CalendarClock className="h-4 w-4" /> },
+    ],
+  },
+  {
+    category: 'Sales Deals',
+    blocks: [
+      { type: 'qualification',     label: 'Qualificacao',      icon: <Award className="h-4 w-4" /> },
+      { type: 'social_proof',      label: 'Prova social',      icon: <Sparkles className="h-4 w-4" /> },
+      { type: 'alignment_video',   label: 'Video alinhamento', icon: <Video className="h-4 w-4" /> },
     ],
   },
   {

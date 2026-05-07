@@ -12,6 +12,14 @@ import type { FormTheme } from '../lib/theme'
 import { ThemePanel } from './ThemePanel'
 import { FontPickerField } from './theme/FontPickerField'
 import type { FontKey } from '../lib/fonts'
+import { QualificationBlock } from './blocks/QualificationBlock'
+import { SocialProofBlock } from './blocks/SocialProofBlock'
+import { AlignmentVideoBlock } from './blocks/AlignmentVideoBlock'
+import type {
+  QualificationNodeData,
+  SocialProofNodeData,
+  AlignmentVideoNodeData,
+} from '@typecall/flow-engine'
 
 interface PropertyPanelProps {
   node: FlowNode | null
@@ -37,7 +45,7 @@ export function PropertyPanel({ node, onUpdate, onClose, formId, theme, onThemeC
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <PropertyFields node={node} onUpdate={onUpdate} />
+        <PropertyFields node={node} onUpdate={onUpdate} formId={formId} />
       </div>
     </div>
   )
@@ -46,9 +54,10 @@ export function PropertyPanel({ node, onUpdate, onClose, formId, theme, onThemeC
 interface PropertyFieldsProps {
   node: FlowNode
   onUpdate: (nodeId: string, data: QuestionData) => void
+  formId: string
 }
 
-function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
+function PropertyFields({ node, onUpdate, formId }: PropertyFieldsProps) {
   const { data } = node
 
   const updateProp = useCallback(
@@ -150,6 +159,28 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
         <EventTypeSelector
           value={(data.props as { eventTypeId: string }).eventTypeId}
           onChange={(id) => updateProp('eventTypeId', id)}
+        />
+      )}
+
+      {node.type === 'qualification' && (
+        <QualificationBlock
+          data={data.props as QualificationNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'qualification', props: next } as QuestionData)}
+        />
+      )}
+
+      {node.type === 'social_proof' && (
+        <SocialProofBlock
+          formId={formId}
+          data={data.props as SocialProofNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'social_proof', props: next } as QuestionData)}
+        />
+      )}
+
+      {node.type === 'alignment_video' && (
+        <AlignmentVideoBlock
+          data={data.props as AlignmentVideoNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'alignment_video', props: next } as QuestionData)}
         />
       )}
     </div>
