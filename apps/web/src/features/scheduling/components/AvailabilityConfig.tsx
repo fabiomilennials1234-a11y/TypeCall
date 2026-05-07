@@ -34,12 +34,12 @@ export function AvailabilityConfig({ eventTypeId }: { eventTypeId: string }) {
       startTime: '09:00',
       endTime: '18:00',
     }))
-    for (const rule of data.rules) {
+    for (const rule of data.rules ?? []) {
       if (rule.dayOfWeek >= 0 && rule.dayOfWeek <= 6) {
         newRules[rule.dayOfWeek] = {
           enabled: true,
-          startTime: rule.startTime.slice(0, 5),
-          endTime: rule.endTime.slice(0, 5),
+          startTime: (rule.startTime ?? '09:00:00').slice(0, 5),
+          endTime: (rule.endTime ?? '18:00:00').slice(0, 5),
         }
       }
     }
@@ -138,14 +138,14 @@ export function AvailabilityConfig({ eventTypeId }: { eventTypeId: string }) {
         {saveMutation.isPending ? 'Salvando...' : 'Salvar disponibilidade'}
       </Button>
 
-      {data && data.overrides.length > 0 && (
+      {data && (data.overrides?.length ?? 0) > 0 && (
         <div className="mt-8">
           <h3 className="text-base font-medium">Excecoes</h3>
           <p className="text-sm text-muted-foreground mb-3">
             Datas especificas com horario diferente ou bloqueadas
           </p>
           <div className="space-y-2">
-            {data.overrides.map((o) => (
+            {(data.overrides ?? []).map((o) => (
               <OverrideItem key={o.id} override={o} eventTypeId={eventTypeId} />
             ))}
           </div>
