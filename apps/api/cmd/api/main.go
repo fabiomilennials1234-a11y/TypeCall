@@ -110,6 +110,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	analyticsRepo := repository.NewAnalyticsRepository(pool)
 	pubAnalyticsRepo := repository.NewPublicAnalyticsRepository(pool)
 	integrationRepo := repository.NewIntegrationRepository(pool)
+	assetRepo := repository.NewAssetRepository(pool)
 
 	encKey, err := cryptohelper.DeriveKey(cfg.EncryptionKey)
 	if err != nil {
@@ -132,6 +133,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookSvc := service.NewWebhookService(webhookRepo)
 	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, userRepo, webhookSvc, gcalProvider)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
+	assetSvc := service.NewAssetService(assetRepo, "data/uploads")
 
 	integrationSvc := service.NewIntegrationService(
 		integrationRepo,
@@ -159,6 +161,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	pubEventsHandler := handler.NewPublicEventsHandler(analyticsSvc, pool)
 	integrationHandler := handler.NewIntegrationHandler(integrationSvc, cfg.WebBaseURL)
 	gcalWebhookHandler := handler.NewGCalWebhookHandler()
+	assetHandler := handler.NewAssetHandler(assetSvc)
 
 	r := chi.NewRouter()
 
@@ -169,6 +172,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	r.Use(mw.CORS(mw.NewCORSConfig(cfg.CORSOrigins, cfg.IsDevelopment())))
 	r.Use(mw.BodyLimit(mw.DefaultBodyLimit))
 	r.Use(mw.RateLimit(rdb, mw.DefaultRateLimitConfig()))
+
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("data/uploads"))))
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -223,6 +228,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 				r.Delete("/", formHandler.Delete)
 				r.Patch("/draft", formHandler.SaveDraft)
 				r.Post("/publish", formHandler.Publish)
+				r.Post("/assets", assetHandler.Upload)
 
 				r.Route("/responses", func(r chi.Router) {
 					r.Get("/", responseHandler.List)
