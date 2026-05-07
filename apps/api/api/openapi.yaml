@@ -1,0 +1,2054 @@
+openapi: 3.1.0
+info:
+  title: TypeCall API
+  version: 1.0.0
+  description: TypeCall — Typeform + Calendly fusion. Qualification + scheduling in one conversational flow.
+  contact:
+    name: milennials
+    email: fabiomilennials1234@gmail.com
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.typecall.io
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Forms
+    description: Form CRUD and publishing
+  - name: Responses
+    description: Form response management
+  - name: EventTypes
+    description: Scheduling event type configuration
+  - name: Availability
+    description: Availability rules and overrides
+  - name: Bookings
+    description: Booking management
+  - name: Analytics
+    description: Form analytics and metrics
+  - name: Webhooks
+    description: Webhook configuration and deliveries
+  - name: Public
+    description: Public endpoints (no auth required)
+  - name: Health
+    description: Health and readiness checks
+
+paths:
+  # ─── Health ───────────────────────────────────────────────
+  /healthz:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      summary: Basic health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /readyz:
+    get:
+      tags: [Health]
+      operationId: readinessCheck
+      summary: Readiness check (database connectivity)
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+        "503":
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: not ready
+                  reason:
+                    type: string
+
+  # ─── Auth ─────────────────────────────────────────────────
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Register new organization and user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "409":
+          description: Slug or email conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in (sets httpOnly cookies)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Account disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Refresh access token via refresh_token cookie
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: refreshed
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Logout and revoke tokens
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Logged out
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      operationId: getMe
+      summary: Get current authenticated user
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ─── Forms ────────────────────────────────────────────────
+  /api/v1/forms:
+    post:
+      tags: [Forms]
+      operationId: createForm
+      summary: Create new form
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFormInput"
+      responses:
+        "201":
+          description: Form created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Form"
+    get:
+      tags: [Forms]
+      operationId: listForms
+      summary: List forms with cursor pagination
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/FormStatus"
+      responses:
+        "200":
+          description: Forms list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListFormsResult"
+
+  /api/v1/forms/{formID}:
+    get:
+      tags: [Forms]
+      operationId: getForm
+      summary: Get form by ID
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+      responses:
+        "200":
+          description: Form details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Form"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [Forms]
+      operationId: updateForm
+      summary: Update form metadata
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFormInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Form"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Slug conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Forms]
+      operationId: deleteForm
+      summary: Soft delete form
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+      responses:
+        "204":
+          description: Deleted
+
+  /api/v1/forms/{formID}/draft:
+    patch:
+      tags: [Forms]
+      operationId: saveDraft
+      summary: Save form draft definition (max 500KB)
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [definition]
+              properties:
+                definition: {}
+      responses:
+        "200":
+          description: Draft saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: saved
+
+  /api/v1/forms/{formID}/publish:
+    post:
+      tags: [Forms]
+      operationId: publishForm
+      summary: Publish form draft as new version
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormVersion"
+        "404":
+          description: Form not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Empty draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ─── Responses ────────────────────────────────────────────
+  /api/v1/forms/{formID}/responses:
+    get:
+      tags: [Responses]
+      operationId: listResponses
+      summary: List responses for a form
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ResponseStatus"
+      responses:
+        "200":
+          description: Responses list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponsesResult"
+
+  /api/v1/forms/{formID}/responses/{responseID}:
+    get:
+      tags: [Responses]
+      operationId: getResponse
+      summary: Get response with answers
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+        - name: responseID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Response with answers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ─── Event Types ──────────────────────────────────────────
+  /api/v1/event-types:
+    post:
+      tags: [EventTypes]
+      operationId: createEventType
+      summary: Create event type
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventTypeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventType"
+    get:
+      tags: [EventTypes]
+      operationId: listEventTypes
+      summary: List event types
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Event types list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEventTypesResult"
+
+  /api/v1/event-types/{eventTypeID}:
+    get:
+      tags: [EventTypes]
+      operationId: getEventType
+      summary: Get event type by ID
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+      responses:
+        "200":
+          description: Event type details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventType"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags: [EventTypes]
+      operationId: updateEventType
+      summary: Update event type
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEventTypeInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventType"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [EventTypes]
+      operationId: deleteEventType
+      summary: Delete event type
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Availability ─────────────────────────────────────────
+  /api/v1/event-types/{eventTypeID}/availability:
+    get:
+      tags: [Availability]
+      operationId: getAvailability
+      summary: Get availability rules and overrides
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+      responses:
+        "200":
+          description: Availability config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AvailabilityRule"
+                  overrides:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AvailabilityOverride"
+    put:
+      tags: [Availability]
+      operationId: setAvailabilityRules
+      summary: Replace all availability rules
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvailabilityInput"
+      responses:
+        "200":
+          description: Rules set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AvailabilityRule"
+
+  /api/v1/event-types/{eventTypeID}/availability/overrides:
+    post:
+      tags: [Availability]
+      operationId: createOverride
+      summary: Create availability override for specific date
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOverrideInput"
+      responses:
+        "201":
+          description: Override created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityOverride"
+
+  /api/v1/event-types/{eventTypeID}/availability/overrides/{overrideID}:
+    delete:
+      tags: [Availability]
+      operationId: deleteOverride
+      summary: Delete availability override
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+        - name: overrideID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Bookings ─────────────────────────────────────────────
+  /api/v1/bookings:
+    get:
+      tags: [Bookings]
+      operationId: listBookings
+      summary: List bookings for organization
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/BookingStatus"
+        - name: event_type_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Bookings list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListBookingsResult"
+
+  /api/v1/bookings/{bookingID}:
+    get:
+      tags: [Bookings]
+      operationId: getBooking
+      summary: Get booking details
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: bookingID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/bookings/{bookingID}/cancel:
+    post:
+      tags: [Bookings]
+      operationId: cancelBooking
+      summary: Cancel booking
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: bookingID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: cancelled
+
+  # ─── Analytics ────────────────────────────────────────────
+  /api/v1/analytics/forms/{formID}/summary:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsSummary
+      summary: Get form summary metrics
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Summary metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /api/v1/analytics/forms/{formID}/daily:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsDaily
+      summary: Get daily metrics breakdown
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Daily metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FormDailyMetric"
+
+  /api/v1/analytics/forms/{formID}/dropoff:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsDropoff
+      summary: Get step-by-step dropoff analysis
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Step dropoff
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StepDropoff"
+
+  /api/v1/analytics/forms/{formID}/export:
+    get:
+      tags: [Analytics]
+      operationId: exportAnalytics
+      summary: Export responses as CSV
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/FormID"
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /api/v1/analytics/refresh:
+    post:
+      tags: [Analytics]
+      operationId: refreshAnalytics
+      summary: Trigger analytics materialized view refresh
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: refreshed
+
+  # ─── Webhooks ─────────────────────────────────────────────
+  /api/v1/webhooks/config:
+    get:
+      tags: [Webhooks]
+      operationId: getWebhookConfig
+      summary: Get webhook configuration
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Config (null if none)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    oneOf:
+                      - $ref: "#/components/schemas/WebhookConfig"
+                      - type: "null"
+    post:
+      tags: [Webhooks]
+      operationId: upsertWebhookConfig
+      summary: Create or update webhook config
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWebhookConfigInput"
+      responses:
+        "200":
+          description: Config saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookConfig"
+    patch:
+      tags: [Webhooks]
+      operationId: updateWebhookConfig
+      summary: Update webhook config
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWebhookConfigInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookConfig"
+    delete:
+      tags: [Webhooks]
+      operationId: deleteWebhookConfig
+      summary: Delete webhook config
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: deleted
+
+  /api/v1/webhooks/deliveries:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhookDeliveries
+      summary: List webhook delivery attempts
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Deliveries list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deliveries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WebhookDelivery"
+
+  /api/v1/webhooks/deliveries/{deliveryID}/retry:
+    post:
+      tags: [Webhooks]
+      operationId: retryWebhookDelivery
+      summary: Retry failed delivery
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: deliveryID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Retrying
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: retrying
+
+  # ─── Public ───────────────────────────────────────────────
+  /api/v1/public/forms/{slug}:
+    get:
+      tags: [Public]
+      operationId: getPublicForm
+      summary: Get published form by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Published form
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicForm"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/public/forms/{slug}/responses:
+    post:
+      tags: [Public]
+      operationId: submitResponse
+      summary: Submit form response
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitResponseInput"
+      responses:
+        "201":
+          description: Response created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        "404":
+          description: Form not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/public/event-types/{eventTypeID}/slots:
+    get:
+      tags: [Public]
+      operationId: getAvailableSlots
+      summary: Get available time slots for booking
+      parameters:
+        - $ref: "#/components/parameters/EventTypeID"
+        - name: timezone
+          in: query
+          schema:
+            type: string
+            default: America/Sao_Paulo
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Available slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TimeSlot"
+
+  /api/v1/public/bookings:
+    post:
+      tags: [Public]
+      operationId: createPublicBooking
+      summary: Create public booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingInput"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "409":
+          description: Slot conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Booking in past or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/public/bookings/cancel/{token}:
+    post:
+      tags: [Public]
+      operationId: cancelByToken
+      summary: Cancel booking by cancel token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: cancelled
+        "404":
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/public/events:
+    post:
+      tags: [Public]
+      operationId: ingestEvents
+      summary: Ingest analytics events (max 50 per batch)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestEventsInput"
+      responses:
+        "200":
+          description: Events ingested
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inserted:
+                    type: integer
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+
+  parameters:
+    FormID:
+      name: formID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EventTypeID:
+      name: eventTypeID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    # ─── Error ────────────────────────────────────────────
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+
+    # ─── Auth ─────────────────────────────────────────────
+    RegisterInput:
+      type: object
+      required: [org_name, org_slug, email, password, name]
+      properties:
+        org_name:
+          type: string
+        org_slug:
+          type: string
+          pattern: "^[a-z0-9-]+$"
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthUser:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        organization:
+          $ref: "#/components/schemas/Organization"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        avatar_url:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        is_active:
+          type: boolean
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        plan:
+          $ref: "#/components/schemas/Plan"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Role:
+      type: string
+      enum: [admin, member, master]
+
+    Plan:
+      type: string
+      enum: [free, starter, pro, enterprise]
+
+    # ─── Forms ────────────────────────────────────────────
+    Form:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/FormStatus"
+        version:
+          type: integer
+        draft_definition: {}
+        theme: {}
+        settings: {}
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FormStatus:
+      type: string
+      enum: [draft, published, archived, closed]
+
+    FormVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        form_id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        version_number:
+          type: integer
+        flow_definition: {}
+        published_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreateFormInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        slug:
+          type: string
+
+    UpdateFormInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        slug:
+          type: string
+        theme: {}
+        settings: {}
+
+    ListFormsResult:
+      type: object
+      properties:
+        forms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Form"
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+
+    # ─── Responses ────────────────────────────────────────
+    Response:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        form_id:
+          type: string
+          format: uuid
+        form_version_id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        respondent_email:
+          type: string
+          nullable: true
+        respondent_name:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/ResponseStatus"
+        metadata: {}
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResponseAnswer"
+
+    ResponseAnswer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        response_id:
+          type: string
+          format: uuid
+        node_id:
+          type: string
+        value: {}
+        answered_at:
+          type: string
+          format: date-time
+
+    ResponseStatus:
+      type: string
+      enum: [in_progress, completed, abandoned]
+
+    SubmitResponseInput:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [node_id, value]
+            properties:
+              node_id:
+                type: string
+              value: {}
+        respondent_email:
+          type: string
+        respondent_name:
+          type: string
+        metadata: {}
+
+    ListResponsesResult:
+      type: object
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Response"
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+
+    PublicForm:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        form_version_id:
+          type: string
+          format: uuid
+        version_number:
+          type: integer
+        flow_definition: {}
+        theme: {}
+        settings: {}
+
+    # ─── Event Types ──────────────────────────────────────
+    EventType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        duration_minutes:
+          type: integer
+        buffer_before_minutes:
+          type: integer
+        buffer_after_minutes:
+          type: integer
+        min_notice_hours:
+          type: integer
+        max_advance_days:
+          type: integer
+        max_per_day:
+          type: integer
+          nullable: true
+        location_type:
+          $ref: "#/components/schemas/LocationType"
+        location_value:
+          type: string
+          nullable: true
+        color:
+          type: string
+        is_active:
+          type: boolean
+        settings: {}
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    LocationType:
+      type: string
+      enum: [google_meet, custom_url, in_person]
+
+    CreateEventTypeInput:
+      type: object
+      required: [title, slug, duration_minutes, location_type, color]
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        duration_minutes:
+          type: integer
+          minimum: 5
+        buffer_before_minutes:
+          type: integer
+          default: 0
+        buffer_after_minutes:
+          type: integer
+          default: 0
+        min_notice_hours:
+          type: integer
+          default: 1
+        max_advance_days:
+          type: integer
+          default: 60
+        max_per_day:
+          type: integer
+          nullable: true
+        location_type:
+          $ref: "#/components/schemas/LocationType"
+        location_value:
+          type: string
+        color:
+          type: string
+
+    UpdateEventTypeInput:
+      type: object
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        duration_minutes:
+          type: integer
+        buffer_before_minutes:
+          type: integer
+        buffer_after_minutes:
+          type: integer
+        min_notice_hours:
+          type: integer
+        max_advance_days:
+          type: integer
+        max_per_day:
+          type: integer
+          nullable: true
+        location_type:
+          $ref: "#/components/schemas/LocationType"
+        location_value:
+          type: string
+        color:
+          type: string
+        is_active:
+          type: boolean
+
+    ListEventTypesResult:
+      type: object
+      properties:
+        event_types:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventType"
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+
+    # ─── Availability ─────────────────────────────────────
+    AvailabilityRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_type_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        day_of_week:
+          type: integer
+          minimum: 0
+          maximum: 6
+        start_time:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "09:00"
+        end_time:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "17:00"
+        created_at:
+          type: string
+          format: date-time
+
+    AvailabilityOverride:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_type_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        is_available:
+          type: boolean
+        start_time:
+          type: string
+          nullable: true
+        end_time:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    SetAvailabilityInput:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          type: array
+          items:
+            type: object
+            required: [day_of_week, start_time, end_time]
+            properties:
+              day_of_week:
+                type: integer
+                minimum: 0
+                maximum: 6
+              start_time:
+                type: string
+                pattern: "^\\d{2}:\\d{2}$"
+              end_time:
+                type: string
+                pattern: "^\\d{2}:\\d{2}$"
+
+    CreateOverrideInput:
+      type: object
+      required: [date, is_available]
+      properties:
+        date:
+          type: string
+          format: date
+        is_available:
+          type: boolean
+        start_time:
+          type: string
+        end_time:
+          type: string
+        reason:
+          type: string
+
+    # ─── Bookings ─────────────────────────────────────────
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        event_type_id:
+          type: string
+          format: uuid
+        host_user_id:
+          type: string
+          format: uuid
+        response_id:
+          type: string
+          format: uuid
+          nullable: true
+        attendee_name:
+          type: string
+        attendee_email:
+          type: string
+          format: email
+        attendee_phone:
+          type: string
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        location_type:
+          $ref: "#/components/schemas/LocationType"
+        location_value:
+          type: string
+          nullable: true
+        google_event_id:
+          type: string
+          nullable: true
+        meeting_url:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        metadata: {}
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancel_reason:
+          type: string
+          nullable: true
+        rescheduled_from_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BookingStatus:
+      type: string
+      enum: [pending, confirmed, completed, cancelled, rescheduled, no_show]
+
+    CreateBookingInput:
+      type: object
+      required: [event_type_id, attendee_name, attendee_email, start_time, timezone]
+      properties:
+        event_type_id:
+          type: string
+          format: uuid
+        response_id:
+          type: string
+          format: uuid
+        attendee_name:
+          type: string
+        attendee_email:
+          type: string
+          format: email
+        attendee_phone:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        notes:
+          type: string
+
+    ListBookingsResult:
+      type: object
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+
+    TimeSlot:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        host_id:
+          type: string
+          format: uuid
+
+    # ─── Analytics ────────────────────────────────────────
+    AnalyticsSummary:
+      type: object
+      properties:
+        views:
+          type: integer
+        starts:
+          type: integer
+        completions:
+          type: integer
+        abandons:
+          type: integer
+        completion_rate:
+          type: number
+          format: float
+
+    FormDailyMetric:
+      type: object
+      properties:
+        form_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        views:
+          type: integer
+        starts:
+          type: integer
+        completions:
+          type: integer
+        abandons:
+          type: integer
+
+    StepDropoff:
+      type: object
+      properties:
+        step_id:
+          type: string
+        seen:
+          type: integer
+        answered:
+          type: integer
+        dropoff_pct:
+          type: number
+          format: float
+
+    AnalyticsEventType:
+      type: string
+      enum: [view, start, question_seen, question_answered, booking_slot_selected, submit, abandon, share]
+
+    IngestEventsInput:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [event_id, form_id, event_type]
+            properties:
+              event_id:
+                type: string
+                format: uuid
+              form_id:
+                type: string
+                format: uuid
+              response_id:
+                type: string
+                format: uuid
+              step_id:
+                type: string
+              event_type:
+                $ref: "#/components/schemas/AnalyticsEventType"
+              metadata: {}
+
+    # ─── Webhooks ─────────────────────────────────────────
+    WebhookConfig:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        is_active:
+          type: boolean
+        events:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    WebhookDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        webhook_id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        payload: {}
+        status:
+          $ref: "#/components/schemas/WebhookDeliveryStatus"
+        attempts:
+          type: integer
+        last_attempt_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        response_status:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    WebhookDeliveryStatus:
+      type: string
+      enum: [pending, delivered, failed, dead_letter]
+
+    CreateWebhookConfigInput:
+      type: object
+      required: [name, url, secret]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+
+    UpdateWebhookConfigInput:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+        is_active:
+          type: boolean
+        events:
+          type: array
+          items:
+            type: string

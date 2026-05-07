@@ -2,7 +2,7 @@
 title: "Fase 4 - Embed"
 tags: [features, fase-4, embed]
 created: 2026-05-05
-status: planned
+status: delivered
 timeline: Semanas 12-14
 ---
 

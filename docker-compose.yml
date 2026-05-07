@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: typecall-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: typecall
+      POSTGRES_PASSWORD: typecall_dev
+      POSTGRES_DB: typecall_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U typecall -d typecall_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: typecall-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+    container_name: typecall-api
+    restart: unless-stopped
+    environment:
+      ENV: development
+      PORT: "8080"
+      DATABASE_URL: postgres://typecall:typecall_dev@postgres:5432/typecall_dev?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: dev-jwt-secret-at-least-32-chars-long-ok
+      CSRF_SECRET: dev-csrf-secret-32chars-minimum!
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

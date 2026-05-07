@@ -2,7 +2,7 @@
 title: "Fase 2 - Form Builder"
 tags: [features, fase-2, form-builder]
 created: 2026-05-05
-status: planned
+status: delivered
 timeline: Semanas 4-7
 ---
 

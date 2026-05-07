@@ -2,7 +2,7 @@
 title: "Fase 3 - Scheduling"
 tags: [features, fase-3, scheduling]
 created: 2026-05-05
-status: planned
+status: delivered
 timeline: Semanas 8-11
 ---
 
