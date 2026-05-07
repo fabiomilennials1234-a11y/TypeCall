@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Clock, Loader2, Check } from 'lucide-react'
+import { AlertCircle, CalendarX, ChevronLeft, ChevronRight, Clock, Loader2, Check } from 'lucide-react'
 
 import * as bookingsApi from '@/api/endpoints/bookings'
 import { cn } from '@/lib/cn'
@@ -20,6 +20,20 @@ export function ScheduleStep({ eventTypeId, prefillName, prefillEmail, onBooked 
   const [email, setEmail] = useState(prefillEmail ?? '')
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  if (!eventTypeId) {
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+        <div>
+          <p className="font-medium text-destructive">Bloco de agendamento sem configuracao</p>
+          <p className="mt-1 text-muted-foreground">
+            O criador deste formulario precisa selecionar um tipo de reuniao no editor.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const today = new Date()
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -294,6 +308,16 @@ export function ScheduleStep({ eventTypeId, prefillName, prefillEmail, onBooked 
       {slotsLoading && (
         <div className="flex items-center justify-center py-2">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        </div>
+      )}
+
+      {!slotsLoading && slotsData && (slotsData.slots?.length ?? 0) === 0 && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-4 py-6 text-center">
+          <CalendarX className="h-6 w-6 text-muted-foreground/60" />
+          <p className="text-sm font-medium text-foreground">Sem horarios disponiveis</p>
+          <p className="max-w-xs text-xs text-muted-foreground">
+            O host nao configurou disponibilidade para este mes ou todos os horarios ja foram preenchidos. Tente outro mes.
+          </p>
         </div>
       )}
     </div>
