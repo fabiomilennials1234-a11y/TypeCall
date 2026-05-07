@@ -56,6 +56,9 @@ export interface BaseNodeData {
   label: string
   description?: string
   required?: boolean
+  // Optional per-block font key (matches FONTS list in apps/web). When unset,
+  // the runner falls back to the form-level body font.
+  font?: string
 }
 
 export interface WelcomeNodeData extends BaseNodeData {

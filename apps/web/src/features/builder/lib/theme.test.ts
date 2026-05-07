@@ -5,9 +5,7 @@ import { defaultTheme, themeToCss, readTheme, isFormTheme, type FormTheme } from
 const base = defaultTheme()
 
 describe('defaultTheme', () => {
-  it('returns inter font + dark bg + lg radius', () => {
-    expect(base.headingFont).toBe('inter')
-    expect(base.bodyFont).toBe('inter')
+  it('returns dark bg + lg radius + left alignment', () => {
     expect(base.borderRadius).toBe('lg')
     expect(base.background.kind).toBe('color')
     expect(base.alignment).toBe('left')
@@ -48,11 +46,10 @@ describe('themeToCss — color background', () => {
     expect(out.style.background).toBe('#123456')
   })
   it('exposes CSS vars', () => {
-    const out = themeToCss(base) as { style: Record<string, string>; alignment: string }
+    const out = themeToCss(base) as unknown as { style: Record<string, string>; alignment: string }
     expect(out.style['--form-primary']).toBe(base.primaryColor)
     expect(out.style['--form-text']).toBe(base.textColor)
     expect(out.style['--form-radius']).toBeTruthy()
-    expect(out.style['--form-heading-font']).toContain('Inter')
   })
 })
 
@@ -81,16 +78,9 @@ describe('themeToCss — image', () => {
 describe('themeToCss — radius mapping', () => {
   it('maps each radius key to a px value', () => {
     for (const key of ['none', 'sm', 'md', 'lg', 'xl'] as const) {
-      const out = themeToCss({ ...base, borderRadius: key }) as { style: Record<string, string> }
+      const out = themeToCss({ ...base, borderRadius: key }) as unknown as { style: Record<string, string> }
       expect(out.style['--form-radius']).toMatch(/^\d+px$/)
     }
   })
 })
 
-describe('themeToCss — font stacks differ', () => {
-  it('heading and body resolve independently', () => {
-    const out = themeToCss({ ...base, headingFont: 'playfair', bodyFont: 'jetbrains' }) as { style: Record<string, string> }
-    expect(out.style['--form-heading-font']).toContain('Playfair')
-    expect(out.style['--form-body-font']).toContain('JetBrains')
-  })
-})

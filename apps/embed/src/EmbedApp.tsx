@@ -150,7 +150,6 @@ export function EmbedApp() {
     const endingNode = flow.nodes.find((n) => n.type === 'ending')
     return (
       <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={themed.style}>
-        <style>{`.form-runner h1 { font-family: var(--form-heading-font); } .form-runner { font-family: var(--form-body-font); }`}</style>
         <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
           <svg className="h-8 w-8" style={{ color: 'var(--form-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -170,10 +169,6 @@ export function EmbedApp() {
 
   return (
     <div ref={containerRef} className="form-runner flex h-screen flex-col" style={themed.style}>
-      <style>{`
-        .form-runner h1, .form-runner h2, .form-runner h3 { font-family: var(--form-heading-font); }
-        .form-runner { font-family: var(--form-body-font); }
-      `}</style>
       <div className="h-1 w-full bg-black/20">
         <div className="h-1 transition-all duration-500" style={{ width: `${progress}%`, background: 'var(--form-primary)' }} />
       </div>

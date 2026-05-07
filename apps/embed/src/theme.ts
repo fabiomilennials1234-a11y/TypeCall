@@ -3,7 +3,7 @@
 // later. Kept slim here to avoid cross-app imports.
 import type { CSSProperties } from 'react'
 
-const FONT_STACKS: Record<string, string> = {
+export const FONT_STACKS: Record<string, string> = {
   'inter':         '"Inter", system-ui, sans-serif',
   'geist':         '"Geist", system-ui, sans-serif',
   'manrope':       '"Manrope", system-ui, sans-serif',
@@ -12,6 +12,10 @@ const FONT_STACKS: Record<string, string> = {
   'cormorant':     '"Cormorant Garamond", Georgia, serif',
   'crimson':       '"Crimson Pro", Georgia, serif',
   'jetbrains':     '"JetBrains Mono", ui-monospace, monospace',
+}
+
+export function getFontStack(key?: string): string {
+  return FONT_STACKS[key ?? 'inter'] ?? FONT_STACKS.inter!
 }
 
 const RADIUS_PX: Record<string, string> = {
@@ -33,8 +37,6 @@ interface FormThemeShape {
   primaryColor?: string
   textColor?: string
   cardColor?: string
-  headingFont?: string
-  bodyFont?: string
   borderRadius?: string
   alignment?: 'left' | 'center'
 }
@@ -46,8 +48,6 @@ interface ThemedRender {
 
 export function themeToCss(raw: unknown): ThemedRender {
   const t = (raw && typeof raw === 'object' ? raw : {}) as FormThemeShape
-  const headingFont = FONT_STACKS[t.headingFont ?? 'inter'] ?? FONT_STACKS.inter
-  const bodyFont = FONT_STACKS[t.bodyFont ?? 'inter'] ?? FONT_STACKS.inter
   const radius = RADIUS_PX[t.borderRadius ?? 'lg'] ?? RADIUS_PX.lg
 
   const style: CSSProperties & Record<`--${string}`, string> = {
@@ -55,10 +55,7 @@ export function themeToCss(raw: unknown): ThemedRender {
     '--form-text': t.textColor ?? '#fafafa',
     '--form-card': t.cardColor ?? 'rgba(20,20,24,0.85)',
     '--form-radius': radius,
-    '--form-heading-font': headingFont,
-    '--form-body-font': bodyFont,
     color: t.textColor ?? '#fafafa',
-    fontFamily: bodyFont,
   }
 
   const bg = t.background ?? { kind: 'color', color: '#0a0a0b' }

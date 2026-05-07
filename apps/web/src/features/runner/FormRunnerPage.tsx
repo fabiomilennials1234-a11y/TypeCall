@@ -127,7 +127,6 @@ export function FormRunnerPage() {
     const submittedTheme = themeToCss(readTheme(form?.theme))
     return (
       <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={submittedTheme.style}>
-        <style>{`.form-runner h1 { font-family: var(--form-heading-font); } .form-runner { font-family: var(--form-body-font); }`}</style>
         <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
           <Check className="h-10 w-10" style={{ color: 'var(--form-primary)' }} />
         </div>
@@ -153,10 +152,6 @@ export function FormRunnerPage() {
 
   return (
     <div className="form-runner flex h-screen flex-col" style={themed.style}>
-      <style>{`
-        .form-runner h1, .form-runner h2, .form-runner h3 { font-family: var(--form-heading-font); }
-        .form-runner { font-family: var(--form-body-font); }
-      `}</style>
       <div className="h-1 w-full bg-black/20">
         <div
           className="h-1 transition-all duration-500"

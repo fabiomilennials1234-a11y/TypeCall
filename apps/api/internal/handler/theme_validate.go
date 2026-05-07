@@ -10,13 +10,16 @@ import (
 
 // themeShape mirrors the FormTheme TS type. Unknown fields are rejected to keep
 // the JSONB column schema-bound and prevent injection of arbitrary CSS later.
+//
+// HeadingFont/BodyFont are legacy fields kept here so older theme blobs still
+// validate. They are ignored at render time — fonts are now per-block.
 type themeShape struct {
 	Background   themeBackground `json:"background"`
 	PrimaryColor string          `json:"primaryColor"`
 	TextColor    string          `json:"textColor"`
 	CardColor    string          `json:"cardColor"`
-	HeadingFont  string          `json:"headingFont"`
-	BodyFont     string          `json:"bodyFont"`
+	HeadingFont  string          `json:"headingFont,omitempty"`
+	BodyFont     string          `json:"bodyFont,omitempty"`
 	BorderRadius string          `json:"borderRadius"`
 	Alignment    string          `json:"alignment"`
 }
@@ -95,10 +98,11 @@ func validateThemeJSON(raw json.RawMessage) error {
 	if !cssColorRe.MatchString(t.CardColor) {
 		return fmt.Errorf("cardColor must be a CSS color")
 	}
-	if !fontEnum[t.HeadingFont] {
+	// legacy headingFont/bodyFont kept optional; if present, must still be a known font
+	if t.HeadingFont != "" && !fontEnum[t.HeadingFont] {
 		return fmt.Errorf("headingFont must be one of the curated fonts")
 	}
-	if !fontEnum[t.BodyFont] {
+	if t.BodyFont != "" && !fontEnum[t.BodyFont] {
 		return fmt.Errorf("bodyFont must be one of the curated fonts")
 	}
 	if !radiusEnum[t.BorderRadius] {

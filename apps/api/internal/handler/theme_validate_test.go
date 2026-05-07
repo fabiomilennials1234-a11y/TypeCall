@@ -26,6 +26,7 @@ func TestValidateThemeJSON(t *testing.T) {
 		{"null", "null", false},
 		{"empty object", "{}", false},
 		{"valid color background", valid, false},
+		{"valid without legacy fonts", `{"background":{"kind":"color","color":"#fff"},"primaryColor":"#fff","textColor":"#000","cardColor":"#000","borderRadius":"md","alignment":"left"}`, false},
 		{"valid gradient", `{"background":{"kind":"gradient","from":"#000","to":"#fff","angle":90},"primaryColor":"#fff","textColor":"#000","cardColor":"#000","headingFont":"inter","bodyFont":"inter","borderRadius":"md","alignment":"left"}`, false},
 		{"valid image", `{"background":{"kind":"image","url":"/uploads/x.jpg","fit":"cover","assetId":"a"},"primaryColor":"#fff","textColor":"#000","cardColor":"#000","headingFont":"geist","bodyFont":"inter","borderRadius":"none","alignment":"left"}`, false},
 

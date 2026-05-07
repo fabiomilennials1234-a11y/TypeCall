@@ -10,6 +10,8 @@ import { cn } from '@/lib/cn'
 
 import type { FormTheme } from '../lib/theme'
 import { ThemePanel } from './ThemePanel'
+import { FontPickerField } from './theme/FontPickerField'
+import type { FontKey } from '../lib/fonts'
 
 interface PropertyPanelProps {
   node: FlowNode | null
@@ -69,6 +71,12 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
           placeholder="Titulo do bloco"
         />
       </FieldGroup>
+
+      <FontPickerField
+        label="Fonte do bloco"
+        value={(data.props.font as FontKey | undefined) ?? 'inter'}
+        onChange={(font) => updateProp('font', font)}
+      />
 
       {'description' in data.props && (
         <FieldGroup label="Descricao">

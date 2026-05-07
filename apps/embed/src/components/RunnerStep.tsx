@@ -1,5 +1,6 @@
 import type { FlowNode, AnswerValue, Choice, ScheduleNodeData } from '@typecall/flow-engine'
 import { ScheduleStep } from '@/components/ScheduleStep'
+import { getFontStack } from '@/theme'
 
 interface RunnerStepProps {
   node: FlowNode
@@ -13,13 +14,14 @@ interface RunnerStepProps {
 
 export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName, prefillEmail }: RunnerStepProps) {
   const { type, data } = node
+  const fontStack = getFontStack((data.props as { font?: string }).font)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ fontFamily: fontStack }}>
       <div>
-        <h2 className="text-2xl font-bold text-foreground">{data.props.label as string}</h2>
+        <h2 className="text-2xl font-bold" style={{ fontFamily: fontStack, color: 'var(--form-text)' }}>{data.props.label as string}</h2>
         {'description' in data.props && data.props.description && (
-          <p className="mt-2 text-base text-muted-foreground">{data.props.description as string}</p>
+          <p className="mt-2 text-base opacity-70" style={{ fontFamily: fontStack }}>{data.props.description as string}</p>
         )}
       </div>
 

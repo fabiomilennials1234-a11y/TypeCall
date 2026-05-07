@@ -3,7 +3,6 @@ import { Palette } from 'lucide-react'
 import type { FormTheme } from '../lib/theme'
 import { BackgroundEditor } from './theme/BackgroundEditor'
 import { ColorPickerField } from './theme/ColorPickerField'
-import { FontPickerField } from './theme/FontPickerField'
 import { RadiusSelector } from './theme/RadiusSelector'
 import { AlignmentSelector } from './theme/AlignmentSelector'
 
@@ -50,21 +49,6 @@ export function ThemePanel({ formId, theme, onChange }: ThemePanelProps) {
               label="Cor do card"
               value={theme.cardColor}
               onChange={(v) => patch('cardColor', v)}
-            />
-          </div>
-        </Section>
-
-        <Section title="Tipografia">
-          <div className="space-y-4">
-            <FontPickerField
-              label="Fonte de titulos"
-              value={theme.headingFont}
-              onChange={(v) => patch('headingFont', v)}
-            />
-            <FontPickerField
-              label="Fonte de corpo"
-              value={theme.bodyFont}
-              onChange={(v) => patch('bodyFont', v)}
             />
           </div>
         </Section>

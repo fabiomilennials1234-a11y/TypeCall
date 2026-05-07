@@ -1,7 +1,5 @@
 import type { CSSProperties } from 'react'
 
-import { getFontStack, type FontKey } from './fonts'
-
 export type RadiusKey = 'none' | 'sm' | 'md' | 'lg' | 'xl'
 export type Alignment = 'left' | 'center'
 
@@ -15,8 +13,6 @@ export interface FormTheme {
   primaryColor: string
   textColor: string
   cardColor: string
-  headingFont: FontKey
-  bodyFont: FontKey
   borderRadius: RadiusKey
   alignment: Alignment
 }
@@ -35,8 +31,6 @@ export function defaultTheme(): FormTheme {
     primaryColor: 'hsl(263 70% 58%)',
     textColor: '#fafafa',
     cardColor: 'rgba(20,20,24,0.85)',
-    headingFont: 'inter',
-    bodyFont: 'inter',
     borderRadius: 'lg',
     alignment: 'left',
   }
@@ -50,8 +44,6 @@ export function isFormTheme(value: unknown): value is FormTheme {
     typeof t.primaryColor === 'string' &&
     typeof t.textColor === 'string' &&
     typeof t.cardColor === 'string' &&
-    typeof t.headingFont === 'string' &&
-    typeof t.bodyFont === 'string' &&
     typeof t.borderRadius === 'string' &&
     typeof t.alignment === 'string'
   )
@@ -65,14 +57,10 @@ export function readTheme(value: unknown): FormTheme {
 interface ThemeCss {
   style: CSSProperties
   alignment: Alignment
-  headingFontStack: string
-  bodyFontStack: string
   radius: string
 }
 
 export function themeToCss(theme: FormTheme): ThemeCss {
-  const headingFontStack = getFontStack(theme.headingFont)
-  const bodyFontStack = getFontStack(theme.bodyFont)
   const radius = RADIUS_PX[theme.borderRadius]
 
   const style: CSSProperties & Record<`--${string}`, string> = {
@@ -80,10 +68,7 @@ export function themeToCss(theme: FormTheme): ThemeCss {
     '--form-text': theme.textColor,
     '--form-card': theme.cardColor,
     '--form-radius': radius,
-    '--form-heading-font': headingFontStack,
-    '--form-body-font': bodyFontStack,
     color: theme.textColor,
-    fontFamily: bodyFontStack,
   }
 
   switch (theme.background.kind) {
@@ -104,8 +89,6 @@ export function themeToCss(theme: FormTheme): ThemeCss {
   return {
     style,
     alignment: theme.alignment,
-    headingFontStack,
-    bodyFontStack,
     radius,
   }
 }
