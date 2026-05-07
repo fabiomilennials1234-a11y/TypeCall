@@ -5,12 +5,14 @@ import { useRunner } from '@/useRunner'
 import { RunnerStep } from '@/components/RunnerStep'
 import { getPublicForm, submitResponse, trackView, trackStart, trackQuestionSeen, trackQuestionAnswered, trackSubmit, trackAbandon } from '@/api'
 import { initBridge, notifyReady, notifyStepChanged, notifyAnswer, notifyCompleted, notifyResize } from '@/bridge'
+import { themeToCss } from '@/theme'
 
 export function EmbedApp() {
   const slug = getSlugFromUrl()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [formTheme, setFormTheme] = useState<unknown>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const startedRef = useRef(false)
   const formIdRef = useRef<string | null>(null)
@@ -44,6 +46,7 @@ export function EmbedApp() {
     getPublicForm(slug)
       .then((form) => {
         formIdRef.current = form.id
+        setFormTheme((form as { theme?: unknown }).theme ?? null)
         init(form.flowDefinition as unknown as FlowDefinition)
         notifyReady(form.title, form.flowDefinition.nodes.length)
         trackView(form.id)
@@ -141,19 +144,22 @@ export function EmbedApp() {
     )
   }
 
+  const themed = themeToCss(formTheme)
+
   if (submitted) {
     const endingNode = flow.nodes.find((n) => n.type === 'ending')
     return (
-      <div className="flex h-screen flex-col items-center justify-center px-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={themed.style}>
+        <style>{`.form-runner h1 { font-family: var(--form-heading-font); } .form-runner { font-family: var(--form-body-font); }`}</style>
+        <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
+          <svg className="h-8 w-8" style={{ color: 'var(--form-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="mt-5 text-xl font-bold text-foreground">
+        <h1 className="mt-5 text-xl font-bold">
           {(endingNode?.data.props.label as string) ?? 'Obrigado!'}
         </h1>
-        <p className="mt-2 text-center text-sm text-muted-foreground">
+        <p className="mt-2 text-center text-sm opacity-70">
           {(endingNode?.data.props.description as string) ?? 'Suas respostas foram enviadas com sucesso.'}
         </p>
       </div>
@@ -163,12 +169,16 @@ export function EmbedApp() {
   if (!currentNode) return null
 
   return (
-    <div ref={containerRef} className="flex h-screen flex-col">
-      <div className="h-1 w-full bg-muted">
-        <div className="h-1 bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+    <div ref={containerRef} className="form-runner flex h-screen flex-col" style={themed.style}>
+      <style>{`
+        .form-runner h1, .form-runner h2, .form-runner h3 { font-family: var(--form-heading-font); }
+        .form-runner { font-family: var(--form-body-font); }
+      `}</style>
+      <div className="h-1 w-full bg-black/20">
+        <div className="h-1 transition-all duration-500" style={{ width: `${progress}%`, background: 'var(--form-primary)' }} />
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
+      <div className={`flex flex-1 flex-col justify-center px-6 ${themed.alignment === 'center' ? 'items-center text-center' : 'items-start'}`}>
         <div
           key={currentNode.id}
           className="w-full max-w-lg animate-[fadeSlideIn_0.3s_ease-out]"
@@ -186,17 +196,18 @@ export function EmbedApp() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border px-6 py-3">
+      <div className="flex items-center justify-between border-t border-white/10 px-6 py-3">
         <button
           onClick={previous}
           disabled={history.length < 2}
-          className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+          className="rounded-lg px-3 py-2 text-sm opacity-60 transition-opacity hover:opacity-100 disabled:opacity-20"
         >
           ← Voltar
         </button>
         <button
           onClick={next}
-          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="px-5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
         >
           {currentNode.type === 'ending' ? 'Enviar' : 'Continuar →'}
         </button>
