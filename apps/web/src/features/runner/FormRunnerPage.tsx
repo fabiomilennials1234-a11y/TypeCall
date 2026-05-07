@@ -9,6 +9,7 @@ import { useRunner } from '@/features/runner/useRunner'
 import { RunnerStep } from '@/features/runner/RunnerStep'
 import { cn } from '@/lib/cn'
 import * as tracker from '@/features/runner/tracker'
+import { readTheme, themeToCss } from '@/features/builder/lib/theme'
 
 export function FormRunnerPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -123,15 +124,17 @@ export function FormRunnerPage() {
 
   if (submitted) {
     const endingNode = flow.nodes.find((n) => n.type === 'ending')
+    const submittedTheme = themeToCss(readTheme(form?.theme))
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-background px-6">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-          <Check className="h-10 w-10 text-primary" />
+      <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={submittedTheme.style}>
+        <style>{`.form-runner h1 { font-family: var(--form-heading-font); } .form-runner { font-family: var(--form-body-font); }`}</style>
+        <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
+          <Check className="h-10 w-10" style={{ color: 'var(--form-primary)' }} />
         </div>
-        <h1 className="mt-6 text-2xl font-bold text-foreground">
+        <h1 className="mt-6 text-2xl font-bold">
           {endingNode?.data.props.label ?? 'Obrigado!'}
         </h1>
-        <p className="mt-2 text-center text-muted-foreground">
+        <p className="mt-2 text-center opacity-70">
           {(endingNode?.data.props as { description?: string })?.description ?? 'Suas respostas foram enviadas com sucesso.'}
         </p>
       </div>
@@ -146,16 +149,25 @@ export function FormRunnerPage() {
     )
   }
 
+  const themed = themeToCss(readTheme(form.theme))
+
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <div className="h-1 w-full bg-muted">
+    <div className="form-runner flex h-screen flex-col" style={themed.style}>
+      <style>{`
+        .form-runner h1, .form-runner h2, .form-runner h3 { font-family: var(--form-heading-font); }
+        .form-runner { font-family: var(--form-body-font); }
+      `}</style>
+      <div className="h-1 w-full bg-black/20">
         <div
-          className="h-1 bg-primary transition-all duration-500"
-          style={{ width: `${progress}%` }}
+          className="h-1 transition-all duration-500"
+          style={{ width: `${progress}%`, background: 'var(--form-primary)' }}
         />
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
+      <div className={cn(
+        'flex flex-1 flex-col justify-center px-6',
+        themed.alignment === 'center' ? 'items-center text-center' : 'items-start',
+      )}>
         <div
           key={currentNode.id}
           className={cn(
@@ -181,11 +193,11 @@ export function FormRunnerPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border px-6 py-4">
+      <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
         <button
           onClick={previous}
           disabled={history.length < 2}
-          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm opacity-60 transition-opacity hover:opacity-100 disabled:opacity-20"
         >
           <ChevronUp className="h-4 w-4" />
           Voltar
@@ -193,7 +205,8 @@ export function FormRunnerPage() {
 
         <button
           onClick={next}
-          className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
         >
           {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
           <ChevronDown className="h-4 w-4" />
@@ -201,8 +214,8 @@ export function FormRunnerPage() {
       </div>
 
       <div className="py-3 text-center">
-        <span className="text-xs text-muted-foreground/40">
-          Powered by <span className="font-medium text-muted-foreground/60">TypeCall</span>
+        <span className="text-xs opacity-40">
+          Powered by <span className="font-medium opacity-60">TypeCall</span>
         </span>
       </div>
     </div>
