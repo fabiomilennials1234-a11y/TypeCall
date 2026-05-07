@@ -25,6 +25,12 @@ func (v *Validator) addError(field, message string) {
 	v.errors = append(v.errors, FieldError{Field: field, Message: message})
 }
 
+// AddError exposes addError so handler-specific validators (e.g., theme schema
+// checks) can record failures without re-implementing the whole struct.
+func (v *Validator) AddError(field, message string) {
+	v.addError(field, message)
+}
+
 func (v *Validator) HasErrors() bool {
 	return len(v.errors) > 0
 }

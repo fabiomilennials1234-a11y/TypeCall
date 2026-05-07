@@ -113,6 +113,11 @@ func (h *FormHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if input.Slug != nil {
 		v.Slug("slug", *input.Slug)
 	}
+	if input.Theme != nil {
+		if err := validateThemeJSON(*input.Theme); err != nil {
+			v.AddError("theme", err.Error())
+		}
+	}
 	if v.HasErrors() {
 		v.WriteResponse(w)
 		return
