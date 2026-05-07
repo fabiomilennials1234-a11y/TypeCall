@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, Plus, Trash2 } from 'lucide-react'
 
@@ -27,13 +27,13 @@ export function AvailabilityConfig({ eventTypeId }: { eventTypeId: string }) {
   )
   const [initialized, setInitialized] = useState(false)
 
-  if (data && !initialized) {
+  useEffect(() => {
+    if (!data || initialized) return
     const newRules: DayRule[] = Array.from({ length: 7 }, () => ({
       enabled: false,
       startTime: '09:00',
       endTime: '18:00',
     }))
-
     for (const rule of data.rules) {
       if (rule.dayOfWeek >= 0 && rule.dayOfWeek <= 6) {
         newRules[rule.dayOfWeek] = {
@@ -43,10 +43,9 @@ export function AvailabilityConfig({ eventTypeId }: { eventTypeId: string }) {
         }
       }
     }
-
     setRules(newRules)
     setInitialized(true)
-  }
+  }, [data, initialized])
 
   const saveMutation = useMutation({
     mutationFn: () => {
