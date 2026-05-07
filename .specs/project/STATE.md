@@ -130,6 +130,14 @@ loader.js detecta `[data-typecall-form]` no DOM e inicializa automaticamente. AP
 
 Eventos de analytics (view, start, question_seen, question_answered, submit, abandon) coletados no frontend (runner + embed) e enviados em batch pro /api/v1/public/events (publico, sem auth). Dedup via event_id (UUID) com ON CONFLICT DO NOTHING. Batch size 5 ou flush a cada 2s. Abandon usa navigator.sendBeacon pra garantir envio no beforeunload. Materialized view form_daily_metrics atualizada via REFRESH CONCURRENTLY.
 
+### D030: Tela /bookings com toggle Lista | Agenda (2026-05-07)
+
+Tela de Reunioes ganha duas visoes alternaveis:
+- **Lista**: cards verticais ordenados por proximidade (futuras asc primeiro, passadas desc no fim). Botao "Acessar" decorativo por reuniao (sem acao por enquanto, reservado para feature futura de sala/portal).
+- **Agenda**: grid mensal estilo Google Calendar (7 colunas Dom-Sab, ate 3 chips por dia + overflow), navegacao prev/next mes. Click em chip abre `BookingDetailDialog` (reusa cancelMutation).
+
+Duas queries TanStack distintas: `['bookings','list']` (limit 100) e `['bookings','calendar', monthKey]` (from/to do mes, limit 200). cancelMutation invalida ambas. Helpers de data via Date API nativa (sem date-fns) em `features/scheduling/lib/bookings.ts` com 22 testes vitest.
+
 ---
 
 ## Blockers
