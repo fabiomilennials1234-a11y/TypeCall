@@ -1,5 +1,36 @@
 import { api } from '@/api/client'
 
+export type KanbanStatus = 'to_confirm' | 'pre_confirmed' | 'confirmed' | 'rescheduled' | 'no_show' | 'completed'
+export type LeadTag = 'diamond' | 'gold' | 'silver' | 'bronze' | 'disqualified'
+
+export interface KanbanBoard {
+  toConfirm: Booking[]
+  preConfirmed: Booking[]
+  confirmed: Booking[]
+  rescheduled: Booking[]
+  noShow: Booking[]
+  completed: Booking[]
+}
+
+export function getKanbanBoard(sellerId?: string): Promise<KanbanBoard> {
+  const q = sellerId ? `?seller_id=${sellerId}` : ''
+  return api<KanbanBoard>(`/api/v1/bookings/kanban${q}`)
+}
+
+export function updateKanbanStatus(bookingId: string, status: KanbanStatus, notes?: string): Promise<Booking> {
+  return api<Booking>(`/api/v1/bookings/${bookingId}/status`, {
+    method: 'PATCH',
+    body: { status, notes },
+  })
+}
+
+export function rescheduleBooking(bookingId: string, newDatetime: string): Promise<Booking> {
+  return api<Booking>(`/api/v1/bookings/${bookingId}/reschedule`, {
+    method: 'POST',
+    body: { newDatetime },
+  })
+}
+
 export interface Booking {
   id: string
   organizationId: string
@@ -22,6 +53,13 @@ export interface Booking {
   cancelledAt: string | null
   cancelReason: string | null
   rescheduledFromId: string | null
+  kanbanStatus: KanbanStatus
+  sellerId: string | null
+  leadTag: LeadTag | null
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
+  utmContent: string | null
   createdAt: string
   updatedAt: string
 }

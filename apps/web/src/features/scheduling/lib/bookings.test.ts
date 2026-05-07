@@ -36,6 +36,13 @@ function makeBooking(id: string, startIso: string, endIso?: string): Booking {
     cancelledAt: null,
     cancelReason: null,
     rescheduledFromId: null,
+    kanbanStatus: 'to_confirm',
+    sellerId: null,
+    leadTag: null,
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
+    utmContent: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   }

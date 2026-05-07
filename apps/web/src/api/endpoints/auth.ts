@@ -6,7 +6,7 @@ export interface AuthUser {
     organizationId: string
     email: string
     name: string
-    role: 'admin' | 'member' | 'master'
+    role: 'admin' | 'member' | 'master' | 'seller'
     avatarUrl: string | null
     timezone: string
     isActive: boolean
