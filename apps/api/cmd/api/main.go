@@ -158,6 +158,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
 	pubEventsHandler := handler.NewPublicEventsHandler(analyticsSvc, pool)
 	integrationHandler := handler.NewIntegrationHandler(integrationSvc, cfg.WebBaseURL)
+	gcalWebhookHandler := handler.NewGCalWebhookHandler()
 
 	r := chi.NewRouter()
 
@@ -316,6 +317,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 		r.Post("/public/bookings/cancel/{token}", pubBookingHandler.CancelByToken)
 
 		r.Post("/public/events", pubEventsHandler.IngestEvents)
+
+		r.Post("/webhooks/gcal", gcalWebhookHandler.Notify)
 	})
 
 	return r
