@@ -8,25 +8,41 @@ export function GoogleSigninButton({ disabled }: { disabled?: boolean }) {
   const mutation = useMutation({
     mutationFn: () => integrationsApi.getGoogleSigninURL(),
     onSuccess: (data) => {
+      if (!data?.authorizeUrl) {
+        console.error('GoogleSignin: backend retornou payload sem authorize_url', data)
+        return
+      }
       window.location.href = data.authorizeUrl
+    },
+    onError: (err: Error) => {
+      console.error('GoogleSignin: falha ao buscar URL de autorizacao', err)
     },
   })
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      className="w-full"
-      disabled={disabled || mutation.isPending}
-      onClick={() => mutation.mutate()}
-    >
-      {mutation.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <GoogleIcon className="h-4 w-4" />
+    <div className="space-y-2">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={disabled || mutation.isPending}
+        onClick={() => mutation.mutate()}
+      >
+        {mutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <GoogleIcon className="h-4 w-4" />
+        )}
+        Continuar com Google
+      </Button>
+      {mutation.isError && (
+        <p className="text-xs text-destructive">
+          {mutation.error instanceof Error
+            ? mutation.error.message
+            : 'Falha ao iniciar login com Google. Verifique se o servidor esta rodando.'}
+        </p>
       )}
-      Continuar com Google
-    </Button>
+    </div>
   )
 }
 
