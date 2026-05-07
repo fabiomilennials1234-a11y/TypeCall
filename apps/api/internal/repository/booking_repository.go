@@ -19,6 +19,7 @@ type BookingRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error)
 	List(ctx context.Context, params domain.ListBookingsParams) (*domain.ListBookingsResult, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.BookingStatus) error
+	SetGoogleEvent(ctx context.Context, id uuid.UUID, googleEventID, meetingURL string) error
 	Cancel(ctx context.Context, id uuid.UUID, reason *string) error
 	GetByCancelToken(ctx context.Context, token string) (*domain.Booking, error)
 	GetByRescheduleToken(ctx context.Context, token string) (*domain.Booking, error)
@@ -167,6 +168,21 @@ func (r *bookingRepository) UpdateStatus(ctx context.Context, id uuid.UUID, stat
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("BookingRepository.UpdateStatus: not found")
+	}
+	return nil
+}
+
+func (r *bookingRepository) SetGoogleEvent(ctx context.Context, id uuid.UUID, googleEventID, meetingURL string) error {
+	conn := db.Conn(ctx, r.pool)
+	tag, err := conn.Exec(ctx,
+		`UPDATE bookings SET google_event_id = $2, meeting_url = $3, updated_at = now() WHERE id = $1`,
+		id, googleEventID, meetingURL,
+	)
+	if err != nil {
+		return fmt.Errorf("BookingRepository.SetGoogleEvent: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("BookingRepository.SetGoogleEvent: not found")
 	}
 	return nil
 }

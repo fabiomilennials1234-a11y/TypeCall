@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/typecall/api/internal/domain"
+	"github.com/typecall/api/internal/integration/gcal"
 	"github.com/typecall/api/internal/repository"
 )
 
@@ -34,18 +35,24 @@ type BookingService interface {
 type bookingService struct {
 	bookingRepo repository.BookingRepository
 	pubETRepo   repository.PublicEventTypeRepository
+	userRepo    repository.UserRepository
 	webhookSvc  WebhookService
+	gcal        gcal.Provider
 }
 
 func NewBookingService(
 	bookingRepo repository.BookingRepository,
 	pubETRepo repository.PublicEventTypeRepository,
+	userRepo repository.UserRepository,
 	webhookSvc WebhookService,
+	gcalProvider gcal.Provider,
 ) BookingService {
 	return &bookingService{
 		bookingRepo: bookingRepo,
 		pubETRepo:   pubETRepo,
+		userRepo:    userRepo,
 		webhookSvc:  webhookSvc,
+		gcal:        gcalProvider,
 	}
 }
 
@@ -115,6 +122,8 @@ func (s *bookingService) Create(ctx context.Context, input domain.CreateBookingI
 		return nil, fmt.Errorf("BookingService.Create: %w", err)
 	}
 
+	s.syncToGoogleCalendar(ctx, booking, et)
+
 	if s.webhookSvc != nil {
 		go func() {
 			payload := domain.TorqueWebhookPayload{
@@ -176,6 +185,8 @@ func (s *bookingService) Cancel(ctx context.Context, id uuid.UUID, reason *strin
 	if err := s.bookingRepo.Cancel(ctx, id, reason); err != nil {
 		return fmt.Errorf("BookingService.Cancel: %w", err)
 	}
+
+	s.deleteFromGoogleCalendar(ctx, b)
 	return nil
 }
 
@@ -202,7 +213,74 @@ func (s *bookingService) CancelByToken(ctx context.Context, token string, reason
 	if err := s.bookingRepo.Cancel(ctx, b.ID, reason); err != nil {
 		return fmt.Errorf("BookingService.CancelByToken: %w", err)
 	}
+
+	s.deleteFromGoogleCalendar(ctx, b)
 	return nil
+}
+
+// syncToGoogleCalendar attempts to mirror the booking into the host's GCal.
+// On failure, the booking persists without google_event_id/meeting_url; the
+// frontend hides the "Acessar" CTA when meeting_url is empty (visual flag).
+func (s *bookingService) syncToGoogleCalendar(ctx context.Context, b *domain.Booking, et *domain.EventType) {
+	if s.gcal == nil || s.userRepo == nil {
+		return
+	}
+
+	host, err := s.userRepo.GetByID(ctx, b.HostUserID)
+	if err != nil || host == nil {
+		log.Warn().Err(err).Str("booking_id", b.ID.String()).Msg("gcal sync: failed to load host")
+		return
+	}
+
+	connected, err := s.gcal.IsConnected(ctx, b.HostUserID)
+	if err != nil || !connected {
+		return
+	}
+
+	out, err := s.gcal.CreateEvent(ctx, b.HostUserID, gcal.EventInput{
+		Summary:       fmt.Sprintf("%s - %s", et.Title, b.AttendeeName),
+		Description:   buildEventDescription(b),
+		Start:         b.StartTime,
+		End:           b.EndTime,
+		Timezone:      b.Timezone,
+		HostEmail:     host.Email,
+		AttendeeEmail: b.AttendeeEmail,
+		AttendeeName:  b.AttendeeName,
+		BookingID:     b.ID,
+	})
+	if err != nil {
+		log.Warn().Err(err).Str("booking_id", b.ID.String()).Msg("gcal sync: CreateEvent failed; booking persists without meet link")
+		return
+	}
+
+	if err := s.bookingRepo.SetGoogleEvent(ctx, b.ID, out.GoogleEventID, out.MeetingURL); err != nil {
+		log.Error().Err(err).Str("booking_id", b.ID.String()).Str("google_event_id", out.GoogleEventID).Msg("gcal sync: persisted event but failed to save IDs")
+		return
+	}
+	gid := out.GoogleEventID
+	url := out.MeetingURL
+	b.GoogleEventID = &gid
+	b.MeetingURL = &url
+}
+
+func (s *bookingService) deleteFromGoogleCalendar(ctx context.Context, b *domain.Booking) {
+	if s.gcal == nil || b.GoogleEventID == nil || *b.GoogleEventID == "" {
+		return
+	}
+	if err := s.gcal.DeleteEvent(ctx, b.HostUserID, *b.GoogleEventID); err != nil {
+		log.Warn().Err(err).Str("booking_id", b.ID.String()).Str("google_event_id", *b.GoogleEventID).Msg("gcal sync: DeleteEvent failed; manual cleanup may be needed")
+	}
+}
+
+func buildEventDescription(b *domain.Booking) string {
+	desc := fmt.Sprintf("Reuniao agendada via TypeCall.\n\nParticipante: %s\nEmail: %s", b.AttendeeName, b.AttendeeEmail)
+	if b.AttendeePhone != nil && *b.AttendeePhone != "" {
+		desc += "\nTelefone: " + *b.AttendeePhone
+	}
+	if b.Notes != nil && *b.Notes != "" {
+		desc += "\n\nObservacoes:\n" + *b.Notes
+	}
+	return desc
 }
 
 func generateToken() (string, error) {

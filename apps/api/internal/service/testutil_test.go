@@ -392,6 +392,10 @@ func (m *mockBookingRepository) UpdateStatus(ctx context.Context, id uuid.UUID, 
 	return nil
 }
 
+func (m *mockBookingRepository) SetGoogleEvent(ctx context.Context, id uuid.UUID, googleEventID, meetingURL string) error {
+	return nil
+}
+
 func (m *mockBookingRepository) Cancel(ctx context.Context, id uuid.UUID, reason *string) error {
 	if m.CancelFn != nil {
 		return m.CancelFn(ctx, id, reason)

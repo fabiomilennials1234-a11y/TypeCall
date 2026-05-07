@@ -130,7 +130,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	etSvc := service.NewEventTypeService(eventTypeRepo)
 	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo, gcalProvider)
 	webhookSvc := service.NewWebhookService(webhookRepo)
-	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, webhookSvc)
+	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, userRepo, webhookSvc, gcalProvider)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
 
 	integrationSvc := service.NewIntegrationService(
