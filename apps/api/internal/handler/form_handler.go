@@ -65,7 +65,8 @@ func (h *FormHandler) List(w http.ResponseWriter, r *http.Request) {
 		params.Status = &s
 	}
 
-	result, err := h.formSvc.List(r.Context(), params)
+	orgID := mw.GetOrgID(r.Context())
+	result, err := h.formSvc.List(r.Context(), orgID, params)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list forms", "INTERNAL_ERROR")
 		return
@@ -81,7 +82,8 @@ func (h *FormHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	form, err := h.formSvc.Get(r.Context(), id)
+	orgID := mw.GetOrgID(r.Context())
+	form, err := h.formSvc.Get(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, service.ErrFormNotFound) {
 			writeError(w, http.StatusNotFound, "form not found", "NOT_FOUND")
@@ -123,7 +125,8 @@ func (h *FormHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	form, err := h.formSvc.Update(r.Context(), id, input)
+	orgID := mw.GetOrgID(r.Context())
+	form, err := h.formSvc.Update(r.Context(), orgID, id, input)
 	if err != nil {
 		if errors.Is(err, service.ErrFormNotFound) {
 			writeError(w, http.StatusNotFound, "form not found", "NOT_FOUND")
@@ -147,7 +150,8 @@ func (h *FormHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.formSvc.Delete(r.Context(), id); err != nil {
+	orgID := mw.GetOrgID(r.Context())
+	if err := h.formSvc.Delete(r.Context(), orgID, id); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete form", "INTERNAL_ERROR")
 		return
 	}
@@ -180,7 +184,8 @@ func (h *FormHandler) SaveDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.formSvc.SaveDraft(r.Context(), id, body.Definition); err != nil {
+	orgID := mw.GetOrgID(r.Context())
+	if err := h.formSvc.SaveDraft(r.Context(), orgID, id, body.Definition); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save draft", "INTERNAL_ERROR")
 		return
 	}
@@ -196,8 +201,9 @@ func (h *FormHandler) Publish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := mw.GetUserID(r.Context())
+	orgID := mw.GetOrgID(r.Context())
 
-	version, err := h.formSvc.Publish(r.Context(), id, userID)
+	version, err := h.formSvc.Publish(r.Context(), orgID, id, userID)
 	if err != nil {
 		if errors.Is(err, service.ErrFormNotFound) {
 			writeError(w, http.StatusNotFound, "form not found", "NOT_FOUND")

@@ -171,6 +171,13 @@ func (m *mockFormRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 	return nil, nil
 }
 
+func (m *mockFormRepository) GetByIDInOrg(ctx context.Context, id, _ uuid.UUID) (*domain.Form, error) {
+	if m.GetByIDFn != nil {
+		return m.GetByIDFn(ctx, id)
+	}
+	return nil, nil
+}
+
 func (m *mockFormRepository) List(ctx context.Context, params domain.ListFormsParams) (*domain.ListFormsResult, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, params)
@@ -409,6 +416,14 @@ func (m *mockBookingRepository) UpdateKanbanStatus(ctx context.Context, id uuid.
 }
 
 func (m *mockBookingRepository) ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error) {
+	return nil, nil
+}
+
+func (m *mockBookingRepository) LinkResponse(ctx context.Context, bookingID, orgID, responseID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockBookingRepository) ListBySellerAndRange(ctx context.Context, sellerID uuid.UUID, start, end time.Time) ([]domain.Booking, error) {
 	return nil, nil
 }
 

@@ -151,7 +151,7 @@ func TestFormService_Update(t *testing.T) {
 			versionRepo := &mockFormVersionRepository{}
 
 			svc := NewFormService(formRepo, versionRepo)
-			form, err := svc.Update(context.Background(), formID, tt.input)
+			form, err := svc.Update(context.Background(), uuid.New(), formID, tt.input)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -232,7 +232,7 @@ func TestFormService_Publish(t *testing.T) {
 			versionRepo := &mockFormVersionRepository{}
 
 			svc := NewFormService(formRepo, versionRepo)
-			version, err := svc.Publish(context.Background(), formID, userID)
+			version, err := svc.Publish(context.Background(), uuid.New(), formID, userID)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -261,9 +261,13 @@ func TestFormService_Publish(t *testing.T) {
 
 func TestFormService_Delete(t *testing.T) {
 	formID := uuid.New()
+	orgID := uuid.New()
 	deleted := false
 
 	formRepo := &mockFormRepository{
+		GetByIDFn: func(_ context.Context, id uuid.UUID) (*domain.Form, error) {
+			return &domain.Form{ID: id, OrganizationID: orgID}, nil
+		},
 		SoftDeleteFn: func(_ context.Context, _ uuid.UUID) error {
 			deleted = true
 			return nil
@@ -272,7 +276,7 @@ func TestFormService_Delete(t *testing.T) {
 	versionRepo := &mockFormVersionRepository{}
 	svc := NewFormService(formRepo, versionRepo)
 
-	if err := svc.Delete(context.Background(), formID); err != nil {
+	if err := svc.Delete(context.Background(), orgID, formID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !deleted {
@@ -282,9 +286,13 @@ func TestFormService_Delete(t *testing.T) {
 
 func TestFormService_SaveDraft(t *testing.T) {
 	formID := uuid.New()
+	orgID := uuid.New()
 	var savedDraft json.RawMessage
 
 	formRepo := &mockFormRepository{
+		GetByIDFn: func(_ context.Context, id uuid.UUID) (*domain.Form, error) {
+			return &domain.Form{ID: id, OrganizationID: orgID}, nil
+		},
 		UpdateDraftFn: func(_ context.Context, _ uuid.UUID, draft json.RawMessage) error {
 			savedDraft = draft
 			return nil
@@ -294,7 +302,7 @@ func TestFormService_SaveDraft(t *testing.T) {
 	svc := NewFormService(formRepo, versionRepo)
 
 	draft := json.RawMessage(`{"nodes":[{"id":"q1","type":"text"}]}`)
-	if err := svc.SaveDraft(context.Background(), formID, draft); err != nil {
+	if err := svc.SaveDraft(context.Background(), orgID, formID, draft); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(string(savedDraft), "q1") {
