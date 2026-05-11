@@ -37,7 +37,7 @@ type Service interface {
 
 	GetAvailableSlots(ctx context.Context, sellerID uuid.UUID, date time.Time, tz string) ([]domain.SellerSlot, error)
 	GetAggregatedSlotsForTag(ctx context.Context, orgID uuid.UUID, tag string, date time.Time, tz string) ([]domain.SellerSlot, error)
-	PickSellerForSlot(ctx context.Context, orgID uuid.UUID, tag string, slotStart time.Time) (*domain.Seller, error)
+	PickSellerForSlot(ctx context.Context, orgID uuid.UUID, tag string, slotStart time.Time, tz string) (*domain.Seller, error)
 }
 
 type service struct {
@@ -326,7 +326,11 @@ func (s *service) GetAggregatedSlotsForTag(ctx context.Context, orgID uuid.UUID,
 //
 // O caller deve chamar dentro de TX (tenant middleware) pra que SELECT FOR UPDATE
 // e UPSERT do rotation_state sejam atomicos.
-func (s *service) PickSellerForSlot(ctx context.Context, orgID uuid.UUID, tag string, slotStart time.Time) (*domain.Seller, error) {
+func (s *service) PickSellerForSlot(ctx context.Context, orgID uuid.UUID, tag string, slotStart time.Time, tz string) (*domain.Seller, error) {
+	loc, errLoc := time.LoadLocation(tz)
+	if errLoc != nil || loc == nil {
+		loc = time.UTC
+	}
 	candidates, err := s.repo.ListByTag(ctx, orgID, tag)
 	if err != nil {
 		return nil, fmt.Errorf("sellers.Service.PickSellerForSlot: %w", err)
@@ -375,7 +379,7 @@ func (s *service) PickSellerForSlot(ctx context.Context, orgID uuid.UUID, tag st
 		if err != nil {
 			return nil, fmt.Errorf("sellers.Service.PickSellerForSlot: avail: %w", err)
 		}
-		if !slotInAvailability(slotStart, slotEnd, availability) {
+		if !slotInAvailability(slotStart, slotEnd, availability, loc) {
 			continue
 		}
 
@@ -390,8 +394,12 @@ func (s *service) PickSellerForSlot(ctx context.Context, orgID uuid.UUID, tag st
 	return nil, nil
 }
 
-func slotInAvailability(slotStart, slotEnd time.Time, rules []domain.SellerAvailability) bool {
-	dow := int(slotStart.Weekday())
+func slotInAvailability(slotStart, slotEnd time.Time, rules []domain.SellerAvailability, loc *time.Location) bool {
+	if loc == nil {
+		loc = time.UTC
+	}
+	localStart := slotStart.In(loc)
+	dow := int(localStart.Weekday())
 	for _, a := range rules {
 		if a.DayOfWeek != dow {
 			continue
@@ -401,10 +409,10 @@ func slotInAvailability(slotStart, slotEnd time.Time, rules []domain.SellerAvail
 		if err1 != nil || err2 != nil {
 			continue
 		}
-		ws := time.Date(slotStart.Year(), slotStart.Month(), slotStart.Day(),
-			startT.Hour(), startT.Minute(), 0, 0, slotStart.Location())
-		we := time.Date(slotStart.Year(), slotStart.Month(), slotStart.Day(),
-			endT.Hour(), endT.Minute(), 0, 0, slotStart.Location())
+		ws := time.Date(localStart.Year(), localStart.Month(), localStart.Day(),
+			startT.Hour(), startT.Minute(), 0, 0, loc)
+		we := time.Date(localStart.Year(), localStart.Month(), localStart.Day(),
+			endT.Hour(), endT.Minute(), 0, 0, loc)
 		if !slotStart.Before(ws) && !slotEnd.After(we) {
 			return true
 		}

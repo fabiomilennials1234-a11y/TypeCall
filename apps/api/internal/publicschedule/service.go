@@ -115,8 +115,12 @@ func (s *service_) BookSlot(ctx context.Context, input BookSlotInput) (*BookSlot
 	}
 
 	var out *BookSlotOutput
+	tzIn := input.Timezone
+	if tzIn == "" {
+		tzIn = "America/Sao_Paulo"
+	}
 	err = db.WithTenantTx(ctx, s.pool, form.OrganizationID, func(txCtx context.Context) error {
-		seller, err := s.sellersSvc.PickSellerForSlot(txCtx, form.OrganizationID, input.Tag, input.StartTime)
+		seller, err := s.sellersSvc.PickSellerForSlot(txCtx, form.OrganizationID, input.Tag, input.StartTime, tzIn)
 		if err != nil {
 			return fmt.Errorf("pick seller: %w", err)
 		}
@@ -125,10 +129,6 @@ func (s *service_) BookSlot(ctx context.Context, input BookSlotInput) (*BookSlot
 		}
 
 		end := input.StartTime.Add(time.Duration(seller.MeetingDurationMinutes) * time.Minute)
-		tz := input.Timezone
-		if tz == "" {
-			tz = "America/Sao_Paulo"
-		}
 		booking := &domain.Booking{
 			ID:             uuid.New(),
 			OrganizationID: form.OrganizationID,
@@ -139,7 +139,7 @@ func (s *service_) BookSlot(ctx context.Context, input BookSlotInput) (*BookSlot
 			AttendeeEmail:  input.AttendeeEmail,
 			StartTime:      input.StartTime,
 			EndTime:        end,
-			Timezone:       tz,
+			Timezone:       tzIn,
 			Status:          domain.BookingStatusConfirmed,
 			LocationType:    mapSellerToBookingLocation(seller.LocationType),
 			Metadata:        json.RawMessage(`{}`),
