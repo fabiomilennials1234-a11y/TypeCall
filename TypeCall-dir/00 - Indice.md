@@ -58,7 +58,8 @@ Substituir o combo Typeform+Calendly com experiencia nativa brasileira, integrad
 **Sprint 6b (Webhook Torque CRM):** Entregue — migration 0005 (webhook_configs, webhook_deliveries), dispatch HMAC-SHA256, retry exponencial (5 tentativas), dead letter queue, admin UI webhook config + delivery history.
 **Sprint 7 (Embed):** Entregue — apps/embed responder (React, 66KB gz), loader.js IIFE (1.26KB gz), postMessage bridge com origin validation, 4 modos (inline/popup/slider/fullpage), auto-init via data attributes, embed code generator no dashboard.
 **Sprint 8 (Analytics):** Entregue — migration 0006 (response_events + materialized view), event ingestion publico, summary/daily/dropoff/export endpoints, dashboard analitico (metric cards, bar chart, drop-off funnel, CSV export), event tracking fire-and-forget no runner + embed.
-**ADRs:** 4 registradas + 29 decisoes em STATE.md (D001-D029).
+**Sprint 11 (Onboarding):** Entregue — migration 0015 (organizations.onboarded_at + template_form_id), template quiz-default em packages/shared, seller baseline no register, API onboarding (state/skip/complete TX unica), wizard frontend 5 telas com localStorage backup, gate em AppLayout, pixel public endpoint via form slug.
+**ADRs:** 4 registradas + 33 decisoes em STATE.md (D001-D036).
 **Agentes:** 3 configurados (Engenheiro, Dev Senior, Dev Pleno).
 **Proximo passo:** Sprint 9 — Hardening (testes, validacao, seguranca, infra producao). Ver [[MVP Completion Checklist]].
 

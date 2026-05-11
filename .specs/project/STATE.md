@@ -176,6 +176,46 @@ D023 adiou GCal na Fase 3. Agora trazido. Sprint A-H entregues em branch feature
 
 **Bot Acessar**: oculto sem meeting_url. Click abre Meet em nova aba.
 
+### D033: Onboarding wizard org-level com flush-on-complete (2026-05-08)
+
+Wizard de configuracao inicial pos-register/login. Gate em AppLayout: `organization.onboardedAt == null AND user.role IN (admin, master)` → redirect /onboarding. Sellers convidados nao veem.
+
+**Persistencia**: flush-on-complete. POST /onboarding/complete em transaction unica via tenant middleware (D016): upsert seller (CreateDefaultForOwner idempotente), replace seller_availability, upsert pixel_config, create form (status=draft) + save flow_definition, UPDATE organizations SET onboarded_at=now(), template_form_id=form.id. localStorage `tc:onboarding:draft` backup client-side (TTL 24h, removido apos 200).
+
+**Skip**: POST /onboarding/skip seta apenas onboarded_at = now() sem entidades. Banner persistente em SalesDashboard (futuro: implementar).
+
+**Idempotencia**: complete em org ja onboardada retorna 200 com `{already_onboarded: true, formId: org.template_form_id}` sem novos inserts.
+
+**Role check**: handler rejeita 403 se role nao for admin/master (defense in depth alem do gate frontend).
+
+**Pixel ID validation**: regex `^\d{15,16}$` no service (Meta usa 15-16 digitos). Bloqueia injection no client `fbq('init', pixelId)`.
+
+**Form como draft**: template criado com status=draft. Admin redireciona pra /forms/:id/builder pos-finalize, edita conteudo, publica quando pronto. Match expectativa de produto > publish auto.
+
+Migration 0015: `organizations.onboarded_at TIMESTAMPTZ`, `organizations.template_form_id UUID REFERENCES forms(id) ON DELETE SET NULL`, index parcial em onboarded_at IS NULL.
+
+### D034: Templates de form como codigo (JSON estatico) (2026-05-08)
+
+Template default e funcao TS pura em `packages/shared/src/templates/quiz-default.ts`. Versionamento via git. Sem tabela form_templates. Razoes: template e codigo, nao dado de cliente; sem migration extra; sem RLS; sem tcgcio dual source. Galeria de templates futura usa registry pattern (`TEMPLATE_REGISTRY`) — sem migrar pra DB.
+
+`buildQuizDefaultFlow(opts)` retorna FlowDefinition com 7 etapas: contato (toggleavel por contact_fields: name/email/company/instagram/whatsapp), dor (long_text), produto (checkboxes), qualificacao (3 perguntas com tags), aumento de consciencia (2 social_proof + 1 statement), schedule, alignment_video. Edges lineares 0→...→6. nanoid IDs.
+
+Reuso de step types existentes do flow-engine (sem novo type composto `contact_info`) — Typeform-style one-question-per-screen ja garante UX agrupada visualmente.
+
+### D035: Seller baseline no register (2026-05-08)
+
+Auth.Register e GoogleSignin invocam `seller_service.CreateDefaultForOwner(userID, orgID, name)` apos user create. Idempotente (lookup GetByUser primeiro). Cria seller com defaults 30min/15buffer/online + availability Seg-Sex 09:00-18:00.
+
+Soft-fail: erro de seller bootstrap nao quebra register. Log warn. Onboarding wizard reconfigura quando user passar.
+
+Garantia: org sempre tem 1 seller ativo desde o segundo zero. Schedule step do form runner nunca quebra por "nenhum seller na org". (b) bloquear publish de form com schedule sem seller foi vetado pelo Senior por redundancia.
+
+Wire via `service.WireAuthSellerBootstrapper(authSvc, sellersSvc)` em main.go — setter pos-construcao evita ciclo de import (sellers depende de varias coisas; service usa interface minima `SellerBootstrapper`).
+
+### D036: Pixel public endpoint via form slug (2026-05-08)
+
+`GET /api/v1/public/settings/pixel?slug=<form_slug>` resolve org via form e retorna pixel_config dessa org. Sem RLS (pool direto, JOIN forms+pixel_config). Runner consome em useMetaPixel(slug) e injeta fbevents.js + dispara Lead/Schedule conforme flags fire_on_start / fire_on_booking.
+
 ### D030: Tela /bookings com toggle Lista | Agenda (2026-05-07)
 
 Tela de Reunioes ganha duas visoes alternaveis:
@@ -230,6 +270,14 @@ Nenhum no momento.
   - [x] 9.6 Infra producao: docker-compose.prod.yml, Dockerfile Go 1.25 + web Dockerfile + nginx, .env.example
   - [x] 9.7 Observabilidade: /metrics endpoint (uptime, goroutines, heap, request/error counters), zerolog structured logging
   - [x] 9.8 Polish: error states em 10 pages, PT-BR accents fix, index.html meta/OG tags
+- [x] Sprint 11: Onboarding wizard
+  - [x] Migration 0015: organizations.onboarded_at + template_form_id
+  - [x] Template quiz-default em packages/shared
+  - [x] Seller baseline no register (admin/master)
+  - [x] Onboarding API: state, skip, complete (TX unica, idempotente)
+  - [x] Wizard frontend: 5 telas (welcome, agenda, pixel, funil, resumo) com localStorage backup
+  - [x] Gate em AppLayout pra admin/master sem onboarded_at
+  - [x] Pixel public endpoint via slug do form
 - [ ] Sprint 10: Validacao Local E2E
   - [ ] Auto-migration on boot (embed.FS + schema_migrations table)
   - [ ] docker-compose.yml com API service integrado
