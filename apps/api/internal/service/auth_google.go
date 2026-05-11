@@ -242,6 +242,9 @@ func (s *googleSigninService) findOrCreateUser(ctx context.Context, email, name 
 	if err := s.authSvc.userRepo.Create(ctx, &user); err != nil {
 		return nil, fmt.Errorf("GoogleSignin.findOrCreateUser: create user: %w", err)
 	}
+
+	s.authSvc.bootstrapSellerForOwner(ctx, user.ID, org.ID, user.Name)
+
 	return &domain.AuthUser{User: user, Organization: *org}, nil
 }
 

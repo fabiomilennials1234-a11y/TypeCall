@@ -27,6 +27,22 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, cfg)
 }
 
+// GET /api/v1/public/settings/pixel?slug=<form_slug>
+// Sem auth. Resolve org via slug do form.
+func (h *Handler) PublicGet(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("slug")
+	if slug == "" {
+		writeError(w, http.StatusBadRequest, "slug query param required", "INVALID_INPUT")
+		return
+	}
+	cfg, err := h.svc.GetPublicByFormSlug(r.Context(), slug)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load pixel config", "INTERNAL_ERROR")
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
 // PUT /api/v1/settings/pixel
 func (h *Handler) Upsert(w http.ResponseWriter, r *http.Request) {
 	var input domain.UpsertPixelConfigInput

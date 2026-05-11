@@ -26,6 +26,7 @@ type BookingRepository interface {
 	CheckConflict(ctx context.Context, hostUserID uuid.UUID, start time.Time, end time.Time) (bool, error)
 	CountByHostAndDate(ctx context.Context, hostUserID uuid.UUID, date time.Time) (int, error)
 	ListByHostAndRange(ctx context.Context, hostUserID uuid.UUID, start time.Time, end time.Time) ([]domain.Booking, error)
+	ListBySellerAndRange(ctx context.Context, sellerID uuid.UUID, start time.Time, end time.Time) ([]domain.Booking, error)
 
 	UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error
 	ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error)
@@ -270,6 +271,29 @@ func (r *bookingRepository) ListByHostAndRange(ctx context.Context, hostUserID u
 		b, err := r.scanBookingRow(rows)
 		if err != nil {
 			return nil, fmt.Errorf("BookingRepository.ListByHostAndRange: scan: %w", err)
+		}
+		bookings = append(bookings, *b)
+	}
+	return bookings, nil
+}
+
+// ListBySellerAndRange retorna bookings ativos de um seller especifico no range.
+// Usado pra conflict check em multi-vendedor (sellers compartilham user_id placeholder).
+func (r *bookingRepository) ListBySellerAndRange(ctx context.Context, sellerID uuid.UUID, start time.Time, end time.Time) ([]domain.Booking, error) {
+	conn := db.Conn(ctx, r.pool)
+	query := bookingSelectQuery + ` WHERE b.seller_id = $1 AND b.status IN ('pending', 'confirmed') AND b.start_time < $3 AND b.end_time > $2 ORDER BY b.start_time`
+
+	rows, err := conn.Query(ctx, query, sellerID, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("BookingRepository.ListBySellerAndRange: %w", err)
+	}
+	defer rows.Close()
+
+	var bookings []domain.Booking
+	for rows.Next() {
+		b, err := r.scanBookingRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("BookingRepository.ListBySellerAndRange: scan: %w", err)
 		}
 		bookings = append(bookings, *b)
 	}

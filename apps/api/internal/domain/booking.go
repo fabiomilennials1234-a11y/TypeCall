@@ -21,7 +21,7 @@ const (
 type Booking struct {
 	ID                uuid.UUID       `json:"id"`
 	OrganizationID    uuid.UUID       `json:"organization_id"`
-	EventTypeID       uuid.UUID       `json:"event_type_id"`
+	EventTypeID       *uuid.UUID      `json:"event_type_id,omitempty"`
 	HostUserID        uuid.UUID       `json:"host_user_id"`
 	ResponseID        *uuid.UUID      `json:"response_id,omitempty"`
 	AttendeeName      string          `json:"attendee_name"`

@@ -13,10 +13,11 @@ import (
 // --- 1. mockOrganizationRepository ---
 
 type mockOrganizationRepository struct {
-	CreateFn     func(ctx context.Context, org *domain.Organization) error
-	GetByIDFn    func(ctx context.Context, id uuid.UUID) (*domain.Organization, error)
-	GetBySlugFn  func(ctx context.Context, slug string) (*domain.Organization, error)
-	SlugExistsFn func(ctx context.Context, slug string) (bool, error)
+	CreateFn         func(ctx context.Context, org *domain.Organization) error
+	GetByIDFn        func(ctx context.Context, id uuid.UUID) (*domain.Organization, error)
+	GetBySlugFn      func(ctx context.Context, slug string) (*domain.Organization, error)
+	SlugExistsFn     func(ctx context.Context, slug string) (bool, error)
+	MarkOnboardedFn  func(ctx context.Context, orgID uuid.UUID, templateFormID *uuid.UUID) error
 }
 
 func (m *mockOrganizationRepository) Create(ctx context.Context, org *domain.Organization) error {
@@ -45,6 +46,13 @@ func (m *mockOrganizationRepository) SlugExists(ctx context.Context, slug string
 		return m.SlugExistsFn(ctx, slug)
 	}
 	return false, nil
+}
+
+func (m *mockOrganizationRepository) MarkOnboarded(ctx context.Context, orgID uuid.UUID, templateFormID *uuid.UUID) error {
+	if m.MarkOnboardedFn != nil {
+		return m.MarkOnboardedFn(ctx, orgID, templateFormID)
+	}
+	return nil
 }
 
 // --- 2. mockUserRepository ---

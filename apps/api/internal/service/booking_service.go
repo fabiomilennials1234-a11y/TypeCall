@@ -103,7 +103,7 @@ func (s *bookingService) Create(ctx context.Context, input domain.CreateBookingI
 	booking := &domain.Booking{
 		ID:              uuid.New(),
 		OrganizationID:  et.OrganizationID,
-		EventTypeID:     et.ID,
+		EventTypeID:     &et.ID,
 		HostUserID:      et.UserID,
 		ResponseID:      input.ResponseID,
 		AttendeeName:    input.AttendeeName,

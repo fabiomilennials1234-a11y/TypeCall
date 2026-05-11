@@ -24,7 +24,9 @@ import (
 	"github.com/typecall/api/internal/integration/gcal"
 	mw "github.com/typecall/api/internal/middleware"
 	"github.com/typecall/api/internal/observability"
+	"github.com/typecall/api/internal/onboarding"
 	"github.com/typecall/api/internal/pixels"
+	"github.com/typecall/api/internal/publicschedule"
 	"github.com/typecall/api/internal/qualification"
 	"github.com/typecall/api/internal/repository"
 	"github.com/typecall/api/internal/sellers"
@@ -198,10 +200,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	sellersRepo := sellers.NewRepository(pool)
 	sellersSvc := sellers.NewService(sellersRepo, bookingRepo)
 	sellersHandler := sellers.NewHandler(sellersSvc)
+	service.WireAuthSellerBootstrapper(authSvc, sellersSvc)
 
 	pixelsRepo := pixels.NewRepository(pool)
 	pixelsSvc := pixels.NewService(pixelsRepo)
 	pixelsHandler := pixels.NewHandler(pixelsSvc)
+
+	onboardingSvc := onboarding.NewService(orgRepo, sellersSvc, pixelsSvc, formSvc, pixelsRepo)
+	onboardingHandler := onboarding.NewHandler(onboardingSvc)
+
+	publicScheduleSvc := publicschedule.NewService(pool, publicFormRepo, sellersSvc, bookingRepo)
+	publicScheduleHandler := publicschedule.NewHandler(publicScheduleSvc)
 
 	r := chi.NewRouter()
 
@@ -360,6 +369,16 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Put("/", pixelsHandler.Upsert)
 		})
 
+		r.Route("/onboarding", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/state", onboardingHandler.State)
+			r.Post("/skip", onboardingHandler.Skip)
+			r.Post("/complete", onboardingHandler.Complete)
+		})
+
 		r.Route("/analytics", func(r chi.Router) {
 			r.Use(mw.Auth(authSvc))
 			r.Use(mw.CSRF)
@@ -425,6 +444,13 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 		r.Post("/public/bookings/cancel/{token}", pubBookingHandler.CancelByToken)
 
 		r.Post("/public/events", pubEventsHandler.IngestEvents)
+
+		r.Get("/public/settings/pixel", pixelsHandler.PublicGet)
+
+		r.Route("/public/schedule", func(r chi.Router) {
+			r.Get("/slots", publicScheduleHandler.Slots)
+			r.Post("/book", publicScheduleHandler.Book)
+		})
 
 		r.Post("/webhooks/gcal", gcalWebhookHandler.Notify)
 	})

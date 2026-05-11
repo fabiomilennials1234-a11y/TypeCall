@@ -22,6 +22,7 @@ type Seller struct {
 	MeetingDurationMinutes int                `json:"meeting_duration_minutes"`
 	BufferAfterMinutes     int                `json:"buffer_after_minutes"`
 	LocationType           SellerLocationType `json:"location_type"`
+	AllowedTags            []string           `json:"allowed_tags"`
 	Active                 bool               `json:"active"`
 	CreatedAt              time.Time          `json:"created_at"`
 	UpdatedAt              time.Time          `json:"updated_at"`
@@ -33,6 +34,7 @@ type CreateSellerInput struct {
 	MeetingDurationMinutes int                `json:"meeting_duration_minutes"`
 	BufferAfterMinutes     int                `json:"buffer_after_minutes"`
 	LocationType           SellerLocationType `json:"location_type"`
+	AllowedTags            []string           `json:"allowed_tags"`
 }
 
 type UpdateSellerInput struct {
@@ -40,6 +42,7 @@ type UpdateSellerInput struct {
 	MeetingDurationMinutes *int                `json:"meeting_duration_minutes,omitempty"`
 	BufferAfterMinutes     *int                `json:"buffer_after_minutes,omitempty"`
 	LocationType           *SellerLocationType `json:"location_type,omitempty"`
+	AllowedTags            *[]string           `json:"allowed_tags,omitempty"`
 	Active                 *bool               `json:"active,omitempty"`
 }
 

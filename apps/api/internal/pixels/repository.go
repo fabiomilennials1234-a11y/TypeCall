@@ -19,6 +19,7 @@ var ErrPixelConfigNotFound = errors.New("pixel config not found")
 type Repository interface {
 	Get(ctx context.Context, orgID uuid.UUID) (*domain.PixelConfig, error)
 	Upsert(ctx context.Context, c *domain.PixelConfig) error
+	GetByFormSlug(ctx context.Context, slug string) (*domain.PixelConfig, error)
 }
 
 type pgRepo struct {
@@ -44,6 +45,30 @@ func (r *pgRepo) Get(ctx context.Context, orgID uuid.UUID) (*domain.PixelConfig,
 			return nil, ErrPixelConfigNotFound
 		}
 		return nil, fmt.Errorf("pixels.Repository.Get: %w", err)
+	}
+	return c, nil
+}
+
+// GetByFormSlug e o lookup publico (sem RLS) usado pelo runner.
+// Resolve org via slug do form e retorna pixel_config dessa org.
+// Pool direto — nao depende de tenant context.
+func (r *pgRepo) GetByFormSlug(ctx context.Context, slug string) (*domain.PixelConfig, error) {
+	c := &domain.PixelConfig{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT p.id, p.organization_id, p.meta_pixel_id, p.fire_on_start, p.fire_on_booking,
+			p.created_at, p.updated_at
+		  FROM pixel_config p
+		  JOIN forms f ON f.organization_id = p.organization_id
+		 WHERE f.slug = $1 AND f.deleted_at IS NULL
+		 LIMIT 1`, slug).Scan(
+		&c.ID, &c.OrganizationID, &c.MetaPixelID, &c.FireOnStart, &c.FireOnBooking,
+		&c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrPixelConfigNotFound
+		}
+		return nil, fmt.Errorf("pixels.Repository.GetByFormSlug: %w", err)
 	}
 	return c, nil
 }
