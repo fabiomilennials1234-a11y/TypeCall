@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/typecall/api/internal/domain"
 	mw "github.com/typecall/api/internal/middleware"
 	"github.com/typecall/api/internal/service"
@@ -148,6 +150,7 @@ func (h *AuthHandler) GoogleSigninCallback(w http.ResponseWriter, r *http.Reques
 
 	_, tokens, err := h.googleSignin.HandleSigninCallback(r.Context(), code, state)
 	if err != nil {
+		log.Error().Err(err).Msg("google signin callback failed")
 		reason := "callback_failed"
 		if errors.Is(err, service.ErrInvalidOAuthState) {
 			reason = "invalid_state"
