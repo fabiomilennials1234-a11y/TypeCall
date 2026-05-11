@@ -14,9 +14,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { AnimatePresence, motion } from 'motion/react'
 import { GripVertical, Trash2, Type, Mail, List, AlignLeft, CheckSquare } from 'lucide-react'
 import type { FlowNode, StepType } from '@typecall/flow-engine'
 import { cn } from '@/lib/cn'
+import { DUR, EASE } from '@/lib/motion'
 
 const stepIcons: Partial<Record<StepType, React.ReactNode>> = {
   short_text: <Type className="h-4 w-4" />,
@@ -52,22 +54,26 @@ interface SortableNodeProps {
 }
 
 function SortableNode({ node, index, isSelected, onSelect, onRemove }: SortableNodeProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: node.id,
   })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
   }
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
+      layout
+      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+      transition={{ duration: DUR.micro, ease: EASE.outExpo }}
       onClick={() => onSelect(node.id)}
       className={cn(
-        'group flex items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-all',
+        'group flex items-center gap-3 rounded-xl border bg-card px-4 py-3',
         isSelected ? 'border-primary ring-1 ring-primary/20' : 'border-border hover:border-primary/30',
         isDragging && 'opacity-50 shadow-lg'
       )}
@@ -104,7 +110,7 @@ function SortableNode({ node, index, isSelected, onSelect, onRemove }: SortableN
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
-    </div>
+    </motion.div>
   )
 }
 
@@ -155,16 +161,18 @@ export function BuilderCanvas({ nodes, selectedNodeId, onSelect, onRemove, onReo
       <div className="mx-auto max-w-xl space-y-2">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={nodes.map((n) => n.id)} strategy={verticalListSortingStrategy}>
-            {nodes.map((node, index) => (
-              <SortableNode
-                key={node.id}
-                node={node}
-                index={index}
-                isSelected={node.id === selectedNodeId}
-                onSelect={onSelect}
-                onRemove={onRemove}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {nodes.map((node, index) => (
+                <SortableNode
+                  key={node.id}
+                  node={node}
+                  index={index}
+                  isSelected={node.id === selectedNodeId}
+                  onSelect={onSelect}
+                  onRemove={onRemove}
+                />
+              ))}
+            </AnimatePresence>
           </SortableContext>
         </DndContext>
       </div>

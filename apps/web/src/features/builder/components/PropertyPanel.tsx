@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { X, Plus, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import type { FlowNode, QuestionData, Choice } from '@typecall/flow-engine'
@@ -7,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'
 import { cn } from '@/lib/cn'
+import { DUR, EASE } from '@/lib/motion'
 
 import type { FormTheme } from '../lib/theme'
 import { ThemePanel } from './ThemePanel'
@@ -31,22 +33,44 @@ interface PropertyPanelProps {
 }
 
 export function PropertyPanel({ node, onUpdate, onClose, formId, theme, onThemeChange }: PropertyPanelProps) {
-  if (!node) {
-    return <ThemePanel formId={formId} theme={theme} onChange={onThemeChange} />
-  }
+  const transition = { duration: DUR.micro, ease: EASE.outExpo }
 
   return (
-    <div className="flex h-full w-72 flex-col border-l border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">Propriedades</h2>
-        <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <div className="relative h-full w-72 shrink-0 overflow-hidden">
+      <AnimatePresence mode="wait" initial={false}>
+        {node ? (
+          <motion.div
+            key="editor"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={transition}
+            className="flex h-full w-72 flex-col border-l border-border bg-card"
+          >
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-sm font-semibold text-foreground">Propriedades</h2>
+              <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        <PropertyFields node={node} onUpdate={onUpdate} formId={formId} />
-      </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <PropertyFields node={node} onUpdate={onUpdate} formId={formId} />
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="theme"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={transition}
+            className="h-full"
+          >
+            <ThemePanel formId={formId} theme={theme} onChange={onThemeChange} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

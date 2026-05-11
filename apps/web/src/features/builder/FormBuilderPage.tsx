@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Globe, Eye, EyeOff, Save, AlertCircle } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { ArrowLeft, Globe, Eye, Save, AlertCircle } from 'lucide-react'
 import type { FlowDefinition } from '@typecall/flow-engine'
 
 import { Button } from '@/components/ui/button'
@@ -10,10 +11,11 @@ import { useBuilder } from '@/features/builder/useBuilder'
 import { useAutoSave } from '@/features/builder/useAutoSave'
 import { useThemeAutoSave } from '@/features/builder/useThemeAutoSave'
 import { defaultTheme, readTheme, type FormTheme } from '@/features/builder/lib/theme'
+import { DUR, EASE } from '@/lib/motion'
 import { BlockPalette } from '@/features/builder/components/BlockPalette'
 import { BuilderCanvas } from '@/features/builder/components/BuilderCanvas'
 import { PropertyPanel } from '@/features/builder/components/PropertyPanel'
-import { BuilderPreview } from '@/features/builder/components/BuilderPreview'
+import { DevicePreview } from '@/features/builder/components/DevicePreview'
 
 export function FormBuilderPage() {
   const { id } = useParams<{ id: string }>()
@@ -68,6 +70,23 @@ export function FormBuilderPage() {
     setTimeout(() => setSaveStatus('idle'), 2000)
   })
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        setShowPreview((s) => !s)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const selectedStepIndex = useMemo(() => {
+    if (!selectedNodeId) return 0
+    const idx = nodes.findIndex((n) => n.id === selectedNodeId)
+    return idx >= 0 ? idx : 0
+  }, [selectedNodeId, nodes])
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -108,10 +127,14 @@ export function FormBuilderPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowPreview(!showPreview)}
+            onClick={() => setShowPreview(true)}
+            title="Preview (Ctrl+P)"
           >
-            {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            {showPreview ? 'Fechar preview' : 'Preview'}
+            <Eye className="h-4 w-4" />
+            Preview
+            <kbd className="ml-1 hidden rounded border border-border bg-muted/40 px-1 text-[10px] font-mono text-muted-foreground md:inline">
+              Ctrl+P
+            </kbd>
           </Button>
 
           <Button
@@ -136,55 +159,64 @@ export function FormBuilderPage() {
           onReorder={reorderNodes}
         />
 
-        {showPreview ? (
-          <div className="w-80 border-l border-border">
-            <BuilderPreview flow={flow} />
-          </div>
-        ) : (
-          <PropertyPanel
-            node={selectedNode}
-            onUpdate={updateNode}
-            onClose={() => selectNode(null)}
-            formId={id!}
-            theme={theme}
-            onThemeChange={(next) => {
-              setTheme(next)
-              setThemeDirty(true)
-            }}
-          />
-        )}
+        <PropertyPanel
+          node={selectedNode}
+          onUpdate={updateNode}
+          onClose={() => selectNode(null)}
+          formId={id!}
+          theme={theme}
+          onThemeChange={(next) => {
+            setTheme(next)
+            setThemeDirty(true)
+          }}
+        />
       </div>
+
+      <DevicePreview
+        open={showPreview}
+        flow={flow}
+        theme={theme}
+        initialStepIndex={selectedStepIndex}
+        onClose={() => setShowPreview(false)}
+      />
     </div>
   )
 }
 
 function SaveIndicator({ status, isDirty }: { status: 'idle' | 'saving' | 'saved'; isDirty: boolean }) {
-  if (status === 'saving') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Save className="h-3 w-3 animate-pulse" />
-        Salvando...
-      </span>
-    )
+  const key = status === 'idle' && isDirty ? 'dirty' : status
+  const transition = { duration: DUR.tap, ease: EASE.outExpo }
+  const common = {
+    initial: { opacity: 0, y: -4 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 4 },
+    transition,
   }
 
-  if (status === 'saved') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs text-primary/70">
-        <Save className="h-3 w-3" />
-        Salvo
-      </span>
-    )
-  }
-
-  if (isDirty) {
-    return (
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
-        <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-        Nao salvo
-      </span>
-    )
-  }
-
-  return null
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {key === 'saving' && (
+        <motion.span key="saving" {...common} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Save className="h-3 w-3 animate-pulse" />
+          Salvando...
+        </motion.span>
+      )}
+      {key === 'saved' && (
+        <motion.span key="saved" {...common} className="flex items-center gap-1.5 text-xs text-primary/70">
+          <Save className="h-3 w-3" />
+          Salvo
+        </motion.span>
+      )}
+      {key === 'dirty' && (
+        <motion.span key="dirty" {...common} className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+          <motion.span
+            className="h-1.5 w-1.5 rounded-full bg-amber-500"
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          Nao salvo
+        </motion.span>
+      )}
+    </AnimatePresence>
+  )
 }
