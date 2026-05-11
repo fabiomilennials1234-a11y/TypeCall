@@ -41,3 +41,7 @@ export function listResponses(formId: string, params?: { limit?: number; cursor?
 export function getResponse(formId: string, responseId: string): Promise<FormResponse> {
   return api<FormResponse>(`/api/v1/forms/${formId}/responses/${responseId}`)
 }
+
+export function getResponseById(responseId: string): Promise<FormResponse> {
+  return api<FormResponse>(`/api/v1/responses/${responseId}`)
+}

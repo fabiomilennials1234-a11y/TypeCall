@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
-import { Calendar, Clock, Mail, MapPin, Phone, StickyNote, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { Calendar, Clock, FileText, Mail, MapPin, Phone, StickyNote, X } from 'lucide-react'
 
 import type { Booking } from '@/api/endpoints/bookings'
+import * as responsesApi from '@/api/endpoints/responses'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 
@@ -15,6 +18,16 @@ interface BookingDetailDialogProps {
 }
 
 export function BookingDetailDialog({ booking, isCancelling, onClose, onCancel }: BookingDetailDialogProps) {
+  const navigate = useNavigate()
+  const responseId = booking?.responseId ?? null
+
+  const responseLookup = useQuery({
+    queryKey: ['response-lookup', responseId],
+    queryFn: () => responsesApi.getResponseById(responseId!),
+    enabled: !!responseId,
+    staleTime: 60_000,
+  })
+
   useEffect(() => {
     if (!booking) return
     const onKey = (e: KeyboardEvent) => {
@@ -104,6 +117,21 @@ export function BookingDetailDialog({ booking, isCancelling, onClose, onCancel }
             </Row>
           )}
         </div>
+
+        {responseLookup.data && (
+          <button
+            type="button"
+            onClick={() => {
+              const r = responseLookup.data
+              navigate(`/forms/${r.formId}/responses/${r.id}`)
+              onClose()
+            }}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+          >
+            <FileText className="h-4 w-4" />
+            Ver respostas completas
+          </button>
+        )}
 
         <div className="mt-6 flex items-center justify-between gap-3">
           {canCancel ? (
