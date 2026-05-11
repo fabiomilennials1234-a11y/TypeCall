@@ -209,7 +209,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	onboardingSvc := onboarding.NewService(orgRepo, sellersSvc, pixelsSvc, formSvc, pixelsRepo)
 	onboardingHandler := onboarding.NewHandler(onboardingSvc)
 
-	publicScheduleSvc := publicschedule.NewService(pool, publicFormRepo, sellersSvc, bookingRepo)
+	publicScheduleSvc := publicschedule.NewService(pool, publicFormRepo, sellersSvc, bookingRepo, userRepo, gcalProvider)
 	publicScheduleHandler := publicschedule.NewHandler(publicScheduleSvc)
 
 	r := chi.NewRouter()

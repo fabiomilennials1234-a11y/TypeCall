@@ -11,9 +11,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog/log"
 
 	"github.com/typecall/api/internal/db"
 	"github.com/typecall/api/internal/domain"
+	"github.com/typecall/api/internal/integration/gcal"
 	"github.com/typecall/api/internal/repository"
 	"github.com/typecall/api/internal/sellers"
 )
@@ -39,10 +41,12 @@ type Service interface {
 }
 
 type service_ struct {
-	pool       *pgxpool.Pool
-	publicForm repository.PublicFormRepository
-	sellersSvc sellers.Service
+	pool        *pgxpool.Pool
+	publicForm  repository.PublicFormRepository
+	sellersSvc  sellers.Service
 	bookingRepo repository.BookingRepository
+	userRepo    repository.UserRepository
+	gcal        gcal.Provider
 }
 
 func NewService(
@@ -50,12 +54,16 @@ func NewService(
 	publicForm repository.PublicFormRepository,
 	sellersSvc sellers.Service,
 	bookingRepo repository.BookingRepository,
+	userRepo repository.UserRepository,
+	gcalProvider gcal.Provider,
 ) Service {
 	return &service_{
 		pool:        pool,
 		publicForm:  publicForm,
 		sellersSvc:  sellersSvc,
 		bookingRepo: bookingRepo,
+		userRepo:    userRepo,
+		gcal:        gcalProvider,
 	}
 }
 
@@ -160,6 +168,8 @@ func (s *service_) BookSlot(ctx context.Context, input BookSlotInput) (*BookSlot
 			return fmt.Errorf("set seller_id: %w", err)
 		}
 
+		s.syncToGoogleCalendar(txCtx, booking, seller)
+
 		out = &BookSlotOutput{
 			BookingID:  booking.ID,
 			SellerID:   seller.ID,
@@ -192,6 +202,58 @@ func mapSellerToBookingLocation(s domain.SellerLocationType) domain.LocationType
 	default:
 		return domain.LocationGoogleMeet
 	}
+}
+
+// syncToGoogleCalendar dispara CreateEvent na agenda do host (seller.user_id).
+// Soft-fail: booking persiste sem meeting_url se sync falhar.
+func (s *service_) syncToGoogleCalendar(ctx context.Context, b *domain.Booking, seller *domain.Seller) {
+	if s.gcal == nil || s.userRepo == nil || seller.UserID == uuid.Nil {
+		return
+	}
+	hostID := seller.UserID
+
+	host, err := s.userRepo.GetByID(ctx, hostID)
+	if err != nil || host == nil {
+		log.Warn().Err(err).Str("booking_id", b.ID.String()).Msg("publicschedule gcal sync: failed to load host")
+		return
+	}
+
+	connected, err := s.gcal.IsConnected(ctx, hostID)
+	if err != nil || !connected {
+		return
+	}
+
+	out, err := s.gcal.CreateEvent(ctx, hostID, gcal.EventInput{
+		Summary:       fmt.Sprintf("Reuniao com %s", b.AttendeeName),
+		Description:   fmt.Sprintf("Lead: %s\nEmail: %s\nTelefone: %s", b.AttendeeName, b.AttendeeEmail, derefPhone(b.AttendeePhone)),
+		Start:         b.StartTime,
+		End:           b.EndTime,
+		Timezone:      b.Timezone,
+		HostEmail:     host.Email,
+		AttendeeEmail: b.AttendeeEmail,
+		AttendeeName:  b.AttendeeName,
+		BookingID:     b.ID,
+	})
+	if err != nil {
+		log.Warn().Err(err).Str("booking_id", b.ID.String()).Msg("publicschedule gcal sync: CreateEvent failed")
+		return
+	}
+
+	if err := s.bookingRepo.SetGoogleEvent(ctx, b.ID, out.GoogleEventID, out.MeetingURL); err != nil {
+		log.Error().Err(err).Str("booking_id", b.ID.String()).Msg("publicschedule gcal sync: persisted event but failed to save IDs")
+		return
+	}
+	gid := out.GoogleEventID
+	url := out.MeetingURL
+	b.GoogleEventID = &gid
+	b.MeetingURL = &url
+}
+
+func derefPhone(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 func setBookingSeller(ctx context.Context, pool *pgxpool.Pool, bookingID, sellerID uuid.UUID) error {
