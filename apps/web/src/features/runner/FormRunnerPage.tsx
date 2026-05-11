@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ChevronUp, ChevronDown, Check, Loader2 } from 'lucide-react'
+import { AnimatePresence, motion, type Variants } from 'motion/react'
+import { ChevronUp, ChevronDown, Loader2 } from 'lucide-react'
 import type { AnswerValue, FlowDefinition, Answers, StepType } from '@typecall/flow-engine'
 
 import * as publicApi from '@/api/endpoints/public'
@@ -9,10 +10,23 @@ import { useRunner } from '@/features/runner/useRunner'
 import { RunnerStep } from '@/features/runner/RunnerStep'
 import { deriveTagFromAnswers } from '@/features/runner/deriveTag'
 import { cn } from '@/lib/cn'
+import { DUR, EASE } from '@/lib/motion'
 import * as tracker from '@/features/runner/tracker'
 import { readTheme, themeToCss } from '@/features/builder/lib/theme'
 import { useMetaPixel } from '@/features/runner/useMetaPixel'
 import { useQualification } from '@/features/runner/useQualification'
+
+const stepVariants: Variants = {
+  enter: (dir: 'forward' | 'backward') => ({
+    opacity: 0,
+    y: dir === 'forward' ? 24 : -24,
+  }),
+  center: { opacity: 1, y: 0 },
+  exit: (dir: 'forward' | 'backward') => ({
+    opacity: 0,
+    y: dir === 'forward' ? -24 : 24,
+  }),
+}
 
 export function FormRunnerPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -153,17 +167,58 @@ export function FormRunnerPage() {
   if (submitted) {
     const endingNode = flow.nodes.find((n) => n.type === 'ending')
     const submittedTheme = themeToCss(readTheme(form?.theme))
+    const endingProps = endingNode?.data.props as { label?: string; description?: string } | undefined
     return (
       <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={submittedTheme.style}>
-        <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
-          <Check className="h-10 w-10" style={{ color: 'var(--form-primary)' }} />
+        <div className="relative">
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            style={{ background: 'color-mix(in oklab, var(--form-primary) 30%, transparent)' }}
+            initial={{ scale: 1, opacity: 0.8 }}
+            animate={{ scale: 2.2, opacity: 0 }}
+            transition={{ duration: 1, delay: 0.2, ease: 'easeOut' }}
+          />
+          <motion.div
+            className="relative flex h-20 w-20 items-center justify-center rounded-full"
+            style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.1, 1], opacity: 1 }}
+            transition={{ duration: DUR.cinema, ease: EASE.outExpo, times: [0, 0.7, 1] }}
+          >
+            <svg
+              className="h-10 w-10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--form-primary)"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <motion.path
+                d="M5 13l4 4L19 7"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 0.5, delay: 0.25, ease: 'easeOut' }}
+              />
+            </svg>
+          </motion.div>
         </div>
-        <h1 className="mt-6 text-2xl font-bold">
-          {endingNode?.data.props.label ?? 'Obrigado!'}
-        </h1>
-        <p className="mt-2 text-center opacity-70">
-          {(endingNode?.data.props as { description?: string })?.description ?? 'Suas respostas foram enviadas com sucesso.'}
-        </p>
+        <motion.h1
+          className="mt-6 text-2xl font-bold"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: DUR.route, delay: 0.4, ease: EASE.outExpo }}
+        >
+          {endingProps?.label ?? 'Obrigado!'}
+        </motion.h1>
+        <motion.p
+          className="mt-2 text-center opacity-70"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 0.7, y: 0 }}
+          transition={{ duration: DUR.route, delay: 0.5, ease: EASE.outExpo }}
+        >
+          {endingProps?.description ?? 'Suas respostas foram enviadas com sucesso.'}
+        </motion.p>
       </div>
     )
   }
@@ -181,9 +236,12 @@ export function FormRunnerPage() {
   return (
     <div className="form-runner flex h-screen flex-col" style={themed.style}>
       <div className="h-1 w-full bg-black/20">
-        <div
-          className="h-1 transition-all duration-500"
-          style={{ width: `${progress}%`, background: 'var(--form-primary)' }}
+        <motion.div
+          className="h-1"
+          style={{ background: 'var(--form-primary)' }}
+          initial={false}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: DUR.route, ease: EASE.outExpo }}
         />
       </div>
 
@@ -191,54 +249,62 @@ export function FormRunnerPage() {
         'flex flex-1 flex-col justify-center px-6',
         themed.alignment === 'center' ? 'items-center text-center' : 'items-start',
       )}>
-        <div
-          key={currentNode.id}
-          className={cn(
-            'w-full max-w-lg',
-            'animate-in fade-in duration-300',
-            direction === 'forward' ? 'slide-in-from-right-8' : 'slide-in-from-left-8'
-          )}
-        >
-          <RunnerStep
-            node={currentNode}
-            value={answers[currentNode.id] ?? null}
-            error={errors[currentNode.id] ?? ''}
-            onChange={(value: AnswerValue) => {
-              setAnswer(currentNode.id, value)
-              if (form && value !== null && value !== undefined && value !== '') {
-                tracker.trackQuestionAnswered(form.id, currentNode.id)
-              }
-            }}
-            onSubmit={next}
-            prefillName={getPrefillFromAnswers(flow, answers, 'short_text')}
-            prefillEmail={getPrefillFromAnswers(flow, answers, 'email')}
-            formSlug={slug}
-            leadTag={deriveTagFromAnswers(flow, answers)}
-          />
-        </div>
+        <AnimatePresence mode="wait" initial={false} custom={direction}>
+          <motion.div
+            key={currentNode.id}
+            custom={direction}
+            variants={stepVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: DUR.route, ease: EASE.outExpo }}
+            className="w-full max-w-lg"
+          >
+            <RunnerStep
+              node={currentNode}
+              value={answers[currentNode.id] ?? null}
+              error={errors[currentNode.id] ?? ''}
+              onChange={(value: AnswerValue) => {
+                setAnswer(currentNode.id, value)
+                if (form && value !== null && value !== undefined && value !== '') {
+                  tracker.trackQuestionAnswered(form.id, currentNode.id)
+                }
+              }}
+              onSubmit={next}
+              prefillName={getPrefillFromAnswers(flow, answers, 'short_text')}
+              prefillEmail={getPrefillFromAnswers(flow, answers, 'email')}
+              formSlug={slug}
+              leadTag={deriveTagFromAnswers(flow, answers)}
+            />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
-        <button
+        <motion.button
           onClick={previous}
           disabled={history.length < 2}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.96 }}
           className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm opacity-60 transition-opacity hover:opacity-100 disabled:opacity-20"
         >
           <ChevronUp className="h-4 w-4" />
           Voltar
-        </button>
+        </motion.button>
 
         {currentNode.type === 'schedule' && !answers[currentNode.id] ? (
           <span className="text-xs opacity-50">Confirme o agendamento acima pra avancar.</span>
         ) : (
-          <button
+          <motion.button
             onClick={next}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
             className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
             style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
           >
             {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
             <ChevronDown className="h-4 w-4" />
-          </button>
+          </motion.button>
         )}
       </div>
 
