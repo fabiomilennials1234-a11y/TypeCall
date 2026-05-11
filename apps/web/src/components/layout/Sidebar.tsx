@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, LogOut, Zap, Calendar, BarChart3, Settings, Kanban, Users } from 'lucide-react'
+import { FileText, LogOut, Zap, Calendar, BarChart3, Settings, Users } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/contexts/auth'
 import { useLogoutMutation } from '@/hooks/useAuth'
@@ -9,14 +9,12 @@ type Role = 'admin' | 'member' | 'master' | 'seller'
 const adminNav = [
   { label: 'Dashboard',  icon: BarChart3,        path: '/' },
   { label: 'Funis',      icon: FileText,         path: '/forms' },
-  { label: 'Kanban',     icon: Kanban,           path: '/kanban' },
   { label: 'Reunioes',   icon: Calendar,         path: '/bookings' },
   { label: 'Vendedores', icon: Users,            path: '/sellers' },
   { label: 'Configuracoes', icon: Settings,      path: '/settings' },
 ]
 
 const sellerNav = [
-  { label: 'Kanban',          icon: Kanban,   path: '/kanban' },
   { label: 'Minhas reunioes', icon: Calendar, path: '/bookings' },
 ]
 

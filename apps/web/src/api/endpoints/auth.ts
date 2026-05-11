@@ -21,6 +21,8 @@ export interface AuthUser {
     logoUrl: string | null
     timezone: string
     plan: 'free' | 'starter' | 'pro' | 'enterprise'
+    onboardedAt: string | null
+    templateFormId: string | null
     createdAt: string
     updatedAt: string
   }

@@ -7,10 +7,21 @@ import path from 'path'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@typecall/flow-engine': path.resolve(__dirname, '../../packages/flow-engine/src/index.ts'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      {
+        find: '@typecall/flow-engine',
+        replacement: path.resolve(__dirname, '../../packages/flow-engine/src/index.ts'),
+      },
+      {
+        find: /^@typecall\/shared\/(.*)$/,
+        replacement: path.resolve(__dirname, '../../packages/shared/src/$1/index.ts'),
+      },
+      {
+        find: /^@typecall\/shared$/,
+        replacement: path.resolve(__dirname, '../../packages/shared/src/index.ts'),
+      },
+    ],
   },
   server: {
     port: 5173,

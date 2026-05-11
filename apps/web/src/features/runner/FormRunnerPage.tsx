@@ -7,6 +7,7 @@ import type { AnswerValue, FlowDefinition, Answers, StepType } from '@typecall/f
 import * as publicApi from '@/api/endpoints/public'
 import { useRunner } from '@/features/runner/useRunner'
 import { RunnerStep } from '@/features/runner/RunnerStep'
+import { deriveTagFromAnswers } from '@/features/runner/deriveTag'
 import { cn } from '@/lib/cn'
 import * as tracker from '@/features/runner/tracker'
 import { readTheme, themeToCss } from '@/features/builder/lib/theme'
@@ -39,7 +40,7 @@ export function FormRunnerPage() {
 
   const [submitted, setSubmitted] = useState(false)
   const startedRef = useRef(false)
-  const { trackLead, trackSchedule, getUTMs } = useMetaPixel()
+  const { trackLead, trackSchedule, getUTMs } = useMetaPixel(slug)
   const { score: scoreQualification } = useQualification(form?.settings)
 
   const submitMutation = useMutation({
@@ -211,6 +212,8 @@ export function FormRunnerPage() {
             onSubmit={next}
             prefillName={getPrefillFromAnswers(flow, answers, 'short_text')}
             prefillEmail={getPrefillFromAnswers(flow, answers, 'email')}
+            formSlug={slug}
+            leadTag={deriveTagFromAnswers(flow, answers)}
           />
         </div>
       </div>
@@ -225,14 +228,18 @@ export function FormRunnerPage() {
           Voltar
         </button>
 
-        <button
-          onClick={next}
-          className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
-        >
-          {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
-          <ChevronDown className="h-4 w-4" />
-        </button>
+        {currentNode.type === 'schedule' && !answers[currentNode.id] ? (
+          <span className="text-xs opacity-50">Confirme o agendamento acima pra avancar.</span>
+        ) : (
+          <button
+            onClick={next}
+            className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+          >
+            {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="py-3 text-center">

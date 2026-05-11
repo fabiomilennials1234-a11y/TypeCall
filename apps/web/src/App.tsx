@@ -21,8 +21,8 @@ import { EmbedPage } from '@/features/embed/EmbedPage'
 import { AnalyticsPage } from '@/features/analytics/AnalyticsPage'
 import { IntegrationsPage } from '@/features/settings/IntegrationsPage'
 import { QualificationRulesPage } from '@/features/qualification/QualificationRulesPage'
-import { KanbanPage } from '@/features/kanban/KanbanPage'
 import { SellersPage } from '@/features/sellers/SellersPage'
+import { OnboardingPage } from '@/features/onboarding/OnboardingPage'
 import { RequireRole } from '@/hooks/useRequireRole'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
 
@@ -35,6 +35,9 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
       </Route>
       <Route element={<ErrorBoundary><ProtectedRoute /></ErrorBoundary>}>
+        <Route element={<RequireRole allowed={['admin', 'master']} />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+        </Route>
         <Route element={<AppLayout />}>
           <Route path="/" element={<SalesDashboard />} />
           <Route path="/dashboard-old" element={<DashboardPage />} />
@@ -45,9 +48,6 @@ export default function App() {
           <Route path="/forms/:id/responses" element={<ResponsesPage />} />
           <Route path="/forms/:id/responses/:responseId" element={<ResponseDetailPage />} />
           <Route path="/forms/:id/qualification" element={<QualificationRulesPage />} />
-          <Route element={<RequireRole allowed={['admin', 'master', 'seller']} />}>
-            <Route path="/kanban" element={<KanbanPage />} />
-          </Route>
           <Route element={<RequireRole allowed={['admin', 'master']} />}>
             <Route path="/sellers" element={<SellersPage />} />
           </Route>

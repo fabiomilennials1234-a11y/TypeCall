@@ -21,9 +21,11 @@ interface RunnerStepProps {
   onSubmit: () => void
   prefillName?: string
   prefillEmail?: string
+  formSlug?: string
+  leadTag?: string
 }
 
-export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName, prefillEmail }: RunnerStepProps) {
+export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName, prefillEmail, formSlug, leadTag }: RunnerStepProps) {
   const { type, data } = node
   const blockFont = (data.props.font as FontKey | undefined) ?? 'inter'
   const fontStack = getFontStack(blockFont)
@@ -67,6 +69,35 @@ export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName
         />
       )}
 
+      {type === 'phone' && (
+        <TextInput
+          type="tel"
+          value={String(value ?? '')}
+          placeholder={(data.props as { placeholder?: string }).placeholder ?? '+55 11 99999-9999'}
+          error={error}
+          onChange={(v) => onChange(v)}
+          onEnter={onSubmit}
+        />
+      )}
+
+      {type === 'long_text' && (
+        <TextAreaInput
+          value={String(value ?? '')}
+          placeholder={(data.props as { placeholder?: string }).placeholder ?? 'Escreva aqui...'}
+          error={error}
+          onChange={(v) => onChange(v)}
+        />
+      )}
+
+      {type === 'checkboxes' && (
+        <CheckboxesInput
+          choices={(data.props as { choices: Choice[] }).choices}
+          value={(Array.isArray(value) ? value : []) as string[]}
+          error={error}
+          onChange={(v) => onChange(v as unknown as AnswerValue)}
+        />
+      )}
+
       {type === 'multiple_choice' && (
         <ChoiceInput
           choices={(data.props as { choices: Choice[] }).choices}
@@ -101,6 +132,8 @@ export function RunnerStep({ node, value, error, onChange, onSubmit, prefillName
       {type === 'schedule' && (
         <ScheduleStep
           eventTypeId={(data.props as ScheduleNodeData).eventTypeId}
+          formSlug={formSlug}
+          tag={leadTag}
           prefillName={prefillName}
           prefillEmail={prefillEmail}
           onBooked={(bookingId) => {
@@ -285,6 +318,80 @@ function AlignmentVideoView({ data, onContinue }: { data: AlignmentVideoNodeData
       >
         Continuar
       </button>
+    </div>
+  )
+}
+
+function TextAreaInput({
+  value,
+  placeholder,
+  error,
+  onChange,
+}: {
+  value: string
+  placeholder: string
+  error: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <textarea
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      autoFocus
+      rows={4}
+      className={cn(
+        'w-full resize-none border-b-2 bg-transparent py-3 text-lg text-foreground outline-none transition-colors',
+        'placeholder:text-muted-foreground/40',
+        error ? 'border-destructive' : 'border-border focus:border-primary',
+      )}
+    />
+  )
+}
+
+function CheckboxesInput({
+  choices,
+  value,
+  error,
+  onChange,
+}: {
+  choices: Choice[]
+  value: string[]
+  error: string
+  onChange: (value: string[]) => void
+}) {
+  function toggle(v: string) {
+    const has = value.includes(v)
+    onChange(has ? value.filter((x) => x !== v) : [...value, v])
+  }
+  return (
+    <div className="space-y-2">
+      {choices.map((choice, index) => {
+        const selected = value.includes(choice.value)
+        return (
+          <button
+            key={choice.id}
+            onClick={() => toggle(choice.value)}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl border-2 px-5 py-3.5 text-left transition-all',
+              selected
+                ? 'border-primary bg-primary/5 text-foreground'
+                : 'border-border text-foreground/80 hover:border-primary/40',
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold',
+                selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+              )}
+            >
+              {String.fromCharCode(65 + index)}
+            </span>
+            <span className="text-base">{choice.label}</span>
+          </button>
+        )
+      })}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   )
 }

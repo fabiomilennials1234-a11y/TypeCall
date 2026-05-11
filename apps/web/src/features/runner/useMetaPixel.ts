@@ -72,14 +72,15 @@ function injectPixel(pixelId: string) {
   }
 }
 
-export function useMetaPixel() {
+export function useMetaPixel(slug?: string) {
   const cfgRef = useRef<PixelConfig | null>(null)
   const utmsRef = useRef<UTMs>({})
 
   useEffect(() => {
     utmsRef.current = captureUTMs()
+    if (!slug) return
     let cancelled = false
-    api<PixelConfig>('/api/v1/public/settings/pixel', { noAuth: true })
+    api<PixelConfig>(`/api/v1/public/settings/pixel?slug=${encodeURIComponent(slug)}`, { noAuth: true })
       .then((cfg) => {
         if (cancelled) return
         cfgRef.current = cfg
@@ -89,7 +90,7 @@ export function useMetaPixel() {
         // pixel desabilitado: ignora silencioso
       })
     return () => { cancelled = true }
-  }, [])
+  }, [slug])
 
   function trackLead(extra?: Record<string, unknown>) {
     if (!cfgRef.current?.fireOnStart) return
