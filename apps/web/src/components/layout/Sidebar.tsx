@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
+import { motion } from 'motion/react'
 import { FileText, LogOut, Zap, Calendar, BarChart3, Settings, Users } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/contexts/auth'
 import { useLogoutMutation } from '@/hooks/useAuth'
+import { DUR, EASE } from '@/lib/motion'
 
 type Role = 'admin' | 'member' | 'master' | 'seller'
 
@@ -56,12 +58,20 @@ export function Sidebar() {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm',
+                'transition-colors duration-150',
                 isActive
-                  ? 'bg-accent text-foreground font-medium'
+                  ? 'text-foreground font-medium'
                   : 'text-sidebar-foreground hover:bg-accent/50 hover:text-foreground',
               )}
             >
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active-pill"
+                  className="absolute inset-0 -z-10 rounded-md bg-accent"
+                  transition={{ duration: DUR.micro, ease: EASE.outExpo }}
+                />
+              )}
               <item.icon className="h-4 w-4 shrink-0" />
               {item.label}
             </Link>

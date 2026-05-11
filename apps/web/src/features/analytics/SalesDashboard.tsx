@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { motion } from 'motion/react'
 import { TrendingUp, DollarSign, Calendar, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react'
 
 import * as salesApi from '@/api/endpoints/salesAnalytics'
 import type { LeadTagKey } from '@/api/endpoints/salesAnalytics'
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { cn } from '@/lib/cn'
+import { listContainerVariants, listItemVariants } from '@/lib/staggerList'
 
 type Period = '7d' | '30d' | '90d'
 
@@ -55,19 +58,52 @@ export function SalesDashboard() {
       </div>
 
       {/* Linha 1 — 4 cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Agendamentos" value={data.totalBookings.toString()} icon={<Calendar className="h-4 w-4" />} />
-        <KpiCard label="Taxa no-show" value={`${data.noShowRate.toFixed(1)}%`} icon={<AlertTriangle className="h-4 w-4" />} tone={data.noShowRate > 20 ? 'bad' : 'neutral'} />
-        <KpiCard label="Vendas" value={data.totalSales.toString()} icon={<TrendingUp className="h-4 w-4" />} />
-        <KpiCard label="Receita" value={`R$ ${formatBRL(data.revenue)}`} icon={<DollarSign className="h-4 w-4" />} />
-      </div>
+      <motion.div
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        variants={listContainerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <KpiCard label="Agendamentos" numericValue={data.totalBookings} icon={<Calendar className="h-4 w-4" />} />
+        <KpiCard
+          label="Taxa no-show"
+          numericValue={data.noShowRate}
+          format={formatPct}
+          icon={<AlertTriangle className="h-4 w-4" />}
+          tone={data.noShowRate > 20 ? 'bad' : 'neutral'}
+        />
+        <KpiCard label="Vendas" numericValue={data.totalSales} icon={<TrendingUp className="h-4 w-4" />} />
+        <KpiCard
+          label="Receita"
+          numericValue={Number(data.revenue) || 0}
+          format={formatBRLPrefix}
+          icon={<DollarSign className="h-4 w-4" />}
+        />
+      </motion.div>
 
       {/* Linha 2 — 3 cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <KpiCard label="Ticket medio" value={`R$ ${formatBRL(data.avgTicket)}`} icon={<DollarSign className="h-4 w-4" />} />
-        <KpiCard label="Taxa remarcacao" value={`${data.rescheduleRate.toFixed(1)}%`} icon={<RefreshCw className="h-4 w-4" />} />
-        <TagDonut byTag={data.byTag} total={totalTagged} />
-      </div>
+      <motion.div
+        className="grid gap-4 md:grid-cols-3"
+        variants={listContainerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <KpiCard
+          label="Ticket medio"
+          numericValue={Number(data.avgTicket) || 0}
+          format={formatBRLPrefix}
+          icon={<DollarSign className="h-4 w-4" />}
+        />
+        <KpiCard
+          label="Taxa remarcacao"
+          numericValue={data.rescheduleRate}
+          format={formatPct}
+          icon={<RefreshCw className="h-4 w-4" />}
+        />
+        <motion.div variants={listItemVariants}>
+          <TagDonut byTag={data.byTag} total={totalTagged} />
+        </motion.div>
+      </motion.div>
 
       {/* Linha 3 — bar charts */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -172,16 +208,34 @@ function PeriodPicker({ value, onChange }: { value: Period; onChange: (p: Period
   )
 }
 
-function KpiCard({ label, value, icon, tone }: { label: string; value: string; icon: React.ReactNode; tone?: 'bad' | 'good' | 'neutral' }) {
+interface KpiCardProps {
+  label: string
+  value?: string
+  numericValue?: number
+  format?: (n: number) => string
+  icon: React.ReactNode
+  tone?: 'bad' | 'good' | 'neutral'
+}
+
+function KpiCard({ label, value, numericValue, format, icon, tone }: KpiCardProps) {
   const toneClass = tone === 'bad' ? 'text-destructive' : tone === 'good' ? 'text-emerald-500' : 'text-foreground'
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <motion.div
+      variants={listItemVariants}
+      className="rounded-xl border border-border bg-card p-4"
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
         <span className="text-muted-foreground/60">{icon}</span>
       </div>
-      <p className={cn('mt-2 text-2xl font-semibold tabular-nums', toneClass)}>{value}</p>
-    </div>
+      <p className={cn('mt-2 text-2xl font-semibold tabular-nums', toneClass)}>
+        {typeof numericValue === 'number' ? (
+          <AnimatedNumber value={numericValue} format={format} />
+        ) : (
+          value
+        )}
+      </p>
+    </motion.div>
   )
 }
 
@@ -271,8 +325,10 @@ function Empty({ text }: { text: string }) {
   )
 }
 
-function formatBRL(s: string): string {
-  const n = Number(s)
-  if (isNaN(n)) return s
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function formatBRLPrefix(n: number): string {
+  return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function formatPct(n: number): string {
+  return `${n.toFixed(1)}%`
 }

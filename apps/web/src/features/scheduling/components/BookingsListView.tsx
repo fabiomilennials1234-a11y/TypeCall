@@ -1,9 +1,12 @@
 import { useMemo } from 'react'
+import { motion } from 'motion/react'
 import { Calendar, Clock, User, XCircle, AlertCircle, MessageCircle, Phone, ExternalLink } from 'lucide-react'
 
 import type { Booking } from '@/api/endpoints/bookings'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
+import { DUR, EASE } from '@/lib/motion'
+import { listContainerVariants, listItemVariants } from '@/lib/staggerList'
 
 import { sortBookings, getStatusConfig } from '../lib/bookings'
 
@@ -63,7 +66,12 @@ export function BookingsListView({
   }
 
   return (
-    <div className="space-y-2">
+    <motion.div
+      className="space-y-2"
+      variants={listContainerVariants}
+      initial="hidden"
+      animate="show"
+    >
       {sorted.map((booking) => {
         const config = getStatusConfig(booking.status)
         const startDate = new Date(booking.startTime)
@@ -71,8 +79,10 @@ export function BookingsListView({
         const canCancel = booking.status === 'pending' || booking.status === 'confirmed'
 
         return (
-          <div
+          <motion.div
             key={booking.id}
+            variants={listItemVariants}
+            whileHover={{ y: -1, transition: { duration: DUR.tap, ease: EASE.outExpo } }}
             className="flex items-center gap-4 rounded-xl border border-border bg-card p-4"
           >
             <div className="flex h-14 w-14 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
@@ -173,9 +183,9 @@ export function BookingsListView({
                 <XCircle className="h-4 w-4" />
               </button>
             )}
-          </div>
+          </motion.div>
         )
       })}
-    </div>
+    </motion.div>
   )
 }

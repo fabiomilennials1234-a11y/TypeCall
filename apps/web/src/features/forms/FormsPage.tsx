@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'motion/react'
 import { Plus, FileText, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useFormsQuery } from '@/hooks/useForms'
 import { CreateFormDialog } from '@/features/forms/components/CreateFormDialog'
 import { FormStatusBadge } from '@/features/forms/components/FormStatusBadge'
+import { DUR, EASE } from '@/lib/motion'
+import { listContainerVariants, listItemVariants } from '@/lib/staggerList'
 
 export function FormsPage() {
   const [showCreate, setShowCreate] = useState(false)
@@ -55,31 +58,41 @@ export function FormsPage() {
       )}
 
       {data && data.forms.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          variants={listContainerVariants}
+          initial="hidden"
+          animate="show"
+        >
           {data.forms.map((form) => (
-            <Link
+            <motion.div
               key={form.id}
-              to={`/forms/${form.id}`}
-              className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/50"
+              variants={listItemVariants}
+              whileHover={{ y: -2, transition: { duration: DUR.tap, ease: EASE.outExpo } }}
             >
-              <div className="flex items-start justify-between">
-                <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
-                  {form.title}
-                </h3>
-                <FormStatusBadge status={form.status} />
-              </div>
-              {form.description && (
-                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                  {form.description}
-                </p>
-              )}
-              <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-                <span>/{form.slug}</span>
-                {form.version > 0 && <span>v{form.version}</span>}
-              </div>
-            </Link>
+              <Link
+                to={`/forms/${form.id}`}
+                className="group block rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/50"
+              >
+                <div className="flex items-start justify-between">
+                  <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">
+                    {form.title}
+                  </h3>
+                  <FormStatusBadge status={form.status} />
+                </div>
+                {form.description && (
+                  <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                    {form.description}
+                  </p>
+                )}
+                <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>/{form.slug}</span>
+                  {form.version > 0 && <span>v{form.version}</span>}
+                </div>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {showCreate && <CreateFormDialog onClose={() => setShowCreate(false)} />}
