@@ -15,12 +15,12 @@ import (
 // validate. They are ignored at render time — fonts are now per-block.
 type themeShape struct {
 	Background   themeBackground `json:"background"`
-	PrimaryColor string          `json:"primaryColor"`
-	TextColor    string          `json:"textColor"`
-	CardColor    string          `json:"cardColor"`
-	HeadingFont  string          `json:"headingFont,omitempty"`
-	BodyFont     string          `json:"bodyFont,omitempty"`
-	BorderRadius string          `json:"borderRadius"`
+	PrimaryColor string          `json:"primary_color"`
+	TextColor    string          `json:"text_color"`
+	CardColor    string          `json:"card_color"`
+	HeadingFont  string          `json:"heading_font,omitempty"`
+	BodyFont     string          `json:"body_font,omitempty"`
+	BorderRadius string          `json:"border_radius"`
 	Alignment    string          `json:"alignment"`
 }
 
@@ -30,7 +30,7 @@ type themeBackground struct {
 	From     string `json:"from,omitempty"`
 	To       string `json:"to,omitempty"`
 	Angle    int    `json:"angle,omitempty"`
-	AssetID  string `json:"assetId,omitempty"`
+	AssetID  string `json:"asset_id,omitempty"`
 	URL      string `json:"url,omitempty"`
 	Fit      string `json:"fit,omitempty"`
 }
