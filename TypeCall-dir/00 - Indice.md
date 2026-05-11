@@ -59,7 +59,8 @@ Substituir o combo Typeform+Calendly com experiencia nativa brasileira, integrad
 **Sprint 7 (Embed):** Entregue — apps/embed responder (React, 66KB gz), loader.js IIFE (1.26KB gz), postMessage bridge com origin validation, 4 modos (inline/popup/slider/fullpage), auto-init via data attributes, embed code generator no dashboard.
 **Sprint 8 (Analytics):** Entregue — migration 0006 (response_events + materialized view), event ingestion publico, summary/daily/dropoff/export endpoints, dashboard analitico (metric cards, bar chart, drop-off funnel, CSV export), event tracking fire-and-forget no runner + embed.
 **Sprint 11 (Onboarding):** Entregue — migration 0015 (organizations.onboarded_at + template_form_id), template quiz-default em packages/shared, seller baseline no register, API onboarding (state/skip/complete TX unica), wizard frontend 5 telas com localStorage backup, gate em AppLayout, pixel public endpoint via form slug.
-**ADRs:** 4 registradas + 33 decisoes em STATE.md (D001-D036).
+**Sprint 12 (Animations + Preview revamp):** Entregue — motion@^12.38.0 em apps/web, CSS-only em apps/embed, tokens easing/duration compartilhados, route transitions, sidebar magic-move, stagger em listagens, AnimatedNumber, builder layout anim, PropertyPanel slide, runner step transitions + submit cinematografico, DevicePreview overlay com 3 viewports + Ctrl+P + sync canvas. Ver [[Animations]].
+**ADRs:** 7 registradas + 37 decisoes em STATE.md (D001-D037).
 **Agentes:** 3 configurados (Engenheiro, Dev Senior, Dev Pleno).
 **Proximo passo:** Sprint 9 — Hardening (testes, validacao, seguranca, infra producao). Ver [[MVP Completion Checklist]].
 

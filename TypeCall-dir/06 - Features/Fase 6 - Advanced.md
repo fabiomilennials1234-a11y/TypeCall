@@ -17,6 +17,35 @@ Funcionalidades avancadas que expandem o TypeCall de MVP para plataforma complet
 
 ---
 
+## Iteracao Pos-MVP — Animations + Preview Revamp
+
+**Status**: entregue 2026-05-11 (branch `develop`)
+
+Sistema de movimento world-class na plataforma + revamp do preview do builder. Detalhes em [[Animations]] e [[ADR-007-motion-lib-e-anim-tokens]].
+
+### Capacidades
+
+- **motion lib em apps/web** + CSS-only em apps/embed (preserva budget D027)
+- **Tokens compartilhados**: easing out-expo + 4 durations (tap/micro/route/cinema)
+- **prefers-reduced-motion** honrado em todas camadas
+- **Plataforma**: route transitions, sidebar magic-move, stagger em listas, AnimatedNumber, builder layout anim, panel slide Editor↔Theme, save indicator refinado
+- **Runner**: step transitions vertical direction-based, submit cinematografico (ring sonar + checkmark pathLength + text stagger), button hover/tap
+- **Embed**: keyframes `tc-*` replicam linguagem do web sem JS overhead, loader popup/slider com RAF open anims
+- **DevicePreview**: overlay com 3 viewports (mobile 390x780, tablet 768x1024, desktop 1280x800), sync canvas→preview, Ctrl/Meta+P toggle, Esc fecha, setas navegam steps
+
+### Bundle delta
+
+- Web: +30kb gz (motion runtime) — 230kb gz total
+- Embed responder: +1.2kb gz (67.26kb gz)
+- Loader: +150b (1.41kb gz)
+
+### Decisoes
+
+- Ver D037 em STATE.md
+- Ver [[ADR-007-motion-lib-e-anim-tokens]]
+
+---
+
 ## Iteracao Pos-MVP — Form Theming (visual customization)
 
 **Status**: entregue 2026-05-07 (branch `feature/form-theming`)

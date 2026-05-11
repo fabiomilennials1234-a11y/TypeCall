@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-11
 
 ---
 
@@ -215,6 +215,44 @@ Wire via `service.WireAuthSellerBootstrapper(authSvc, sellersSvc)` em main.go �
 ### D036: Pixel public endpoint via form slug (2026-05-08)
 
 `GET /api/v1/public/settings/pixel?slug=<form_slug>` resolve org via form e retorna pixel_config dessa org. Sem RLS (pool direto, JOIN forms+pixel_config). Runner consome em useMetaPixel(slug) e injeta fbevents.js + dispara Lead/Schedule conforme flags fire_on_start / fire_on_booking.
+
+### D037: Motion lib em apps/web, CSS-only em apps/embed (2026-05-11)
+
+Animacoes plataforma-wide. apps/web usa `motion@^12.38.0` (Framer Motion v12+ renomeada). apps/embed mantem CSS-only (preserva D027 budget 66kb gz).
+
+**Tokens compartilhados**: easing `outExpo` cubic-bezier(0.16, 1, 0.3, 1) + `inOut` cubic-bezier(0.4, 0, 0.2, 1). Durations `tap=120ms`, `micro=200ms`, `route=350ms`, `cinema=600ms`. Override automatico em `prefers-reduced-motion: reduce` zera durations.
+
+**Web (`apps/web/src/lib/motion.ts`)**: DUR/EASE constantes, useReducedMotion re-export, withReducedMotion helper. Variants compartilhadas em `staggerList.ts`. AnimatedNumber em `components/ui/AnimatedNumber.tsx` usa useMotionValue + animate.
+
+**Aplicacoes (web)**:
+- Route transitions: AnimatePresence mode="wait" em AppLayout (fade+y subtle)
+- Sidebar active pill: layoutId magic-move
+- Listagens (Forms, Bookings, SalesDashboard): listContainer/Item variants + stagger 40ms
+- KpiCards: AnimatedNumber tick na entrada e em updates
+- Builder canvas: motion.div com layout prop + AnimatePresence pra block insert/remove. Coexistencia com @dnd-kit removendo transition string do useSortable.style (so transform). motion gerencia reflow.
+- PropertyPanel: AnimatePresence swap Editor↔Theme com slide x
+- SaveIndicator: swap fade+y entre saving/saved/dirty, bullet amber com pulse infinito
+- Runner: step transitions vertical y±24 com direction custom variants. Submit cinematografico (ring sonar scale 2.2 + ring base scale 0→1.1→1 + checkmark pathLength + text stagger)
+- Botoes: whileHover scale 1.02, whileTap scale 0.96
+
+**Preview revamp (substitui BuilderPreview lateral 320px)**:
+- DevicePreview overlay z-50 com backdrop blur. Device frame centralizado.
+- 3 viewports: mobile 390x780 r=32, tablet 768x1024 r=20, desktop 1280x800 r=12. Border 10px solid pra chrome.
+- Sync canvas→preview: selectedNodeId define initialStepIndex
+- Hotkey Ctrl/Meta+P toggle overlay (preventDefault do print)
+- Esc fecha, click backdrop fecha, setas left/right navegam steps
+- PreviewStep extraido pra arquivo proprio, expandido pra 13 step types (welcome, schedule, rating, nps, etc)
+- BuilderPreview deletado (sem mais consumidor)
+
+**Embed (CSS-only)**:
+- Tokens replicados em `apps/embed/src/styles.css` (:root vars + media query)
+- Keyframes `tc-step-enter-forward/backward`, `tc-success-ring/sonar/check`, `tc-success-text` (prefix `tc-` evita colisao com host site)
+- Step transitions via animation property dinamica (direction-based)
+- Botoes: Tailwind `transition-all duration-150 hover:scale-[1.02] active:scale-[0.96]`
+- Loader popup/slider abrem com RAF trick (set initial style → next frame final → transition triggers)
+- Bundle delta: responder +1.2kb gz (66→67.26 — dentro do budget D027), loader +150b (1.26→1.41kb gz)
+
+Detalhes em [[ADR-007-motion-lib-e-anim-tokens]] e [[Animations]] na pasta Features.
 
 ### D030: Tela /bookings com toggle Lista | Agenda (2026-05-07)
 
