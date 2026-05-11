@@ -8,19 +8,31 @@ import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'
 import { cn } from '@/lib/cn'
 
+import type { FormTheme } from '../lib/theme'
+import { ThemePanel } from './ThemePanel'
+import { FontPickerField } from './theme/FontPickerField'
+import type { FontKey } from '../lib/fonts'
+import { QualificationBlock } from './blocks/QualificationBlock'
+import { SocialProofBlock } from './blocks/SocialProofBlock'
+import { AlignmentVideoBlock } from './blocks/AlignmentVideoBlock'
+import type {
+  QualificationNodeData,
+  SocialProofNodeData,
+  AlignmentVideoNodeData,
+} from '@typecall/flow-engine'
+
 interface PropertyPanelProps {
   node: FlowNode | null
   onUpdate: (nodeId: string, data: QuestionData) => void
   onClose: () => void
+  formId: string
+  theme: FormTheme
+  onThemeChange: (next: FormTheme) => void
 }
 
-export function PropertyPanel({ node, onUpdate, onClose }: PropertyPanelProps) {
+export function PropertyPanel({ node, onUpdate, onClose, formId, theme, onThemeChange }: PropertyPanelProps) {
   if (!node) {
-    return (
-      <div className="flex h-full w-72 items-center justify-center border-l border-border bg-card">
-        <p className="text-sm text-muted-foreground">Selecione um bloco para editar</p>
-      </div>
-    )
+    return <ThemePanel formId={formId} theme={theme} onChange={onThemeChange} />
   }
 
   return (
@@ -33,7 +45,7 @@ export function PropertyPanel({ node, onUpdate, onClose }: PropertyPanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <PropertyFields node={node} onUpdate={onUpdate} />
+        <PropertyFields node={node} onUpdate={onUpdate} formId={formId} />
       </div>
     </div>
   )
@@ -42,9 +54,10 @@ export function PropertyPanel({ node, onUpdate, onClose }: PropertyPanelProps) {
 interface PropertyFieldsProps {
   node: FlowNode
   onUpdate: (nodeId: string, data: QuestionData) => void
+  formId: string
 }
 
-function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
+function PropertyFields({ node, onUpdate, formId }: PropertyFieldsProps) {
   const { data } = node
 
   const updateProp = useCallback(
@@ -67,6 +80,12 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
           placeholder="Titulo do bloco"
         />
       </FieldGroup>
+
+      <FontPickerField
+        label="Fonte do bloco"
+        value={(data.props.font as FontKey | undefined) ?? 'inter'}
+        onChange={(font) => updateProp('font', font)}
+      />
 
       {'description' in data.props && (
         <FieldGroup label="Descricao">
@@ -140,6 +159,28 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
         <EventTypeSelector
           value={(data.props as { eventTypeId: string }).eventTypeId}
           onChange={(id) => updateProp('eventTypeId', id)}
+        />
+      )}
+
+      {node.type === 'qualification' && (
+        <QualificationBlock
+          data={data.props as QualificationNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'qualification', props: next } as QuestionData)}
+        />
+      )}
+
+      {node.type === 'social_proof' && (
+        <SocialProofBlock
+          formId={formId}
+          data={data.props as SocialProofNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'social_proof', props: next } as QuestionData)}
+        />
+      )}
+
+      {node.type === 'alignment_video' && (
+        <AlignmentVideoBlock
+          data={data.props as AlignmentVideoNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'alignment_video', props: next } as QuestionData)}
         />
       )}
     </div>

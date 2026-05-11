@@ -7,8 +7,12 @@ import type { AnswerValue, FlowDefinition, Answers, StepType } from '@typecall/f
 import * as publicApi from '@/api/endpoints/public'
 import { useRunner } from '@/features/runner/useRunner'
 import { RunnerStep } from '@/features/runner/RunnerStep'
+import { deriveTagFromAnswers } from '@/features/runner/deriveTag'
 import { cn } from '@/lib/cn'
 import * as tracker from '@/features/runner/tracker'
+import { readTheme, themeToCss } from '@/features/builder/lib/theme'
+import { useMetaPixel } from '@/features/runner/useMetaPixel'
+import { useQualification } from '@/features/runner/useQualification'
 
 export function FormRunnerPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -36,6 +40,8 @@ export function FormRunnerPage() {
 
   const [submitted, setSubmitted] = useState(false)
   const startedRef = useRef(false)
+  const { trackLead, trackSchedule, getUTMs } = useMetaPixel(slug)
+  const { score: scoreQualification } = useQualification(form?.settings)
 
   const submitMutation = useMutation({
     mutationFn: () => {
@@ -74,6 +80,29 @@ export function FormRunnerPage() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [form, submitted])
+
+  // Pixel: dispara Lead na primeira resposta + Schedule quando schedule node ganha resposta
+  const leadFiredRef = useRef(false)
+  const scheduleFiredRef = useRef(false)
+  useEffect(() => {
+    const hasAnyAnswer = Object.values(answers).some(
+      (v) => v !== null && v !== undefined && v !== '',
+    )
+    if (hasAnyAnswer && !leadFiredRef.current) {
+      leadFiredRef.current = true
+      trackLead({ form_id: form?.id })
+    }
+    const scheduleNode = flow.nodes.find((n) => n.type === 'schedule')
+    if (scheduleNode && answers[scheduleNode.id] && !scheduleFiredRef.current) {
+      scheduleFiredRef.current = true
+      trackSchedule({ form_id: form?.id })
+    }
+  }, [answers, flow.nodes, form, trackLead, trackSchedule])
+
+  // Score qualification block on submit (best-effort; needs response_id which
+  // only exists after submitMutation.success in current backend design).
+  void scoreQualification
+  void getUTMs
 
   useEffect(() => {
     if (currentNode && form) {
@@ -123,15 +152,16 @@ export function FormRunnerPage() {
 
   if (submitted) {
     const endingNode = flow.nodes.find((n) => n.type === 'ending')
+    const submittedTheme = themeToCss(readTheme(form?.theme))
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-background px-6">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-          <Check className="h-10 w-10 text-primary" />
+      <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={submittedTheme.style}>
+        <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
+          <Check className="h-10 w-10" style={{ color: 'var(--form-primary)' }} />
         </div>
-        <h1 className="mt-6 text-2xl font-bold text-foreground">
+        <h1 className="mt-6 text-2xl font-bold">
           {endingNode?.data.props.label ?? 'Obrigado!'}
         </h1>
-        <p className="mt-2 text-center text-muted-foreground">
+        <p className="mt-2 text-center opacity-70">
           {(endingNode?.data.props as { description?: string })?.description ?? 'Suas respostas foram enviadas com sucesso.'}
         </p>
       </div>
@@ -146,22 +176,27 @@ export function FormRunnerPage() {
     )
   }
 
+  const themed = themeToCss(readTheme(form.theme))
+
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <div className="h-1 w-full bg-muted">
+    <div className="form-runner flex h-screen flex-col" style={themed.style}>
+      <div className="h-1 w-full bg-black/20">
         <div
-          className="h-1 bg-primary transition-all duration-500"
-          style={{ width: `${progress}%` }}
+          className="h-1 transition-all duration-500"
+          style={{ width: `${progress}%`, background: 'var(--form-primary)' }}
         />
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
+      <div className={cn(
+        'flex flex-1 flex-col justify-center px-6',
+        themed.alignment === 'center' ? 'items-center text-center' : 'items-start',
+      )}>
         <div
           key={currentNode.id}
           className={cn(
             'w-full max-w-lg',
             'animate-in fade-in duration-300',
-            direction === 'forward' ? 'slide-in-from-bottom-4' : 'slide-in-from-top-4'
+            direction === 'forward' ? 'slide-in-from-right-8' : 'slide-in-from-left-8'
           )}
         >
           <RunnerStep
@@ -177,32 +212,39 @@ export function FormRunnerPage() {
             onSubmit={next}
             prefillName={getPrefillFromAnswers(flow, answers, 'short_text')}
             prefillEmail={getPrefillFromAnswers(flow, answers, 'email')}
+            formSlug={slug}
+            leadTag={deriveTagFromAnswers(flow, answers)}
           />
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border px-6 py-4">
+      <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
         <button
           onClick={previous}
           disabled={history.length < 2}
-          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm opacity-60 transition-opacity hover:opacity-100 disabled:opacity-20"
         >
           <ChevronUp className="h-4 w-4" />
           Voltar
         </button>
 
-        <button
-          onClick={next}
-          className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
-          <ChevronDown className="h-4 w-4" />
-        </button>
+        {currentNode.type === 'schedule' && !answers[currentNode.id] ? (
+          <span className="text-xs opacity-50">Confirme o agendamento acima pra avancar.</span>
+        ) : (
+          <button
+            onClick={next}
+            className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+          >
+            {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="py-3 text-center">
-        <span className="text-xs text-muted-foreground/40">
-          Powered by <span className="font-medium text-muted-foreground/60">TypeCall</span>
+        <span className="text-xs opacity-40">
+          Powered by <span className="font-medium opacity-60">TypeCall</span>
         </span>
       </div>
     </div>

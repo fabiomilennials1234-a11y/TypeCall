@@ -102,7 +102,7 @@ func TestBookingService_Create(t *testing.T) {
 			tt.setupET(pubETRepo)
 			tt.setupBook(bookingRepo)
 
-			svc := NewBookingService(bookingRepo, pubETRepo, webhookSvc)
+			svc := NewBookingService(bookingRepo, pubETRepo, &mockUserRepository{}, webhookSvc, nil)
 			booking, err := svc.Create(context.Background(), tt.input)
 
 			if tt.wantErr != nil {
@@ -173,7 +173,7 @@ func TestBookingService_Cancel(t *testing.T) {
 			bookingRepo := &mockBookingRepository{}
 			tt.setupBook(bookingRepo)
 
-			svc := NewBookingService(bookingRepo, &mockPublicEventTypeRepository{}, &mockWebhookService{})
+			svc := NewBookingService(bookingRepo, &mockPublicEventTypeRepository{}, &mockUserRepository{}, &mockWebhookService{}, nil)
 			err := svc.Cancel(context.Background(), bookingID, nil)
 
 			if tt.wantErr != nil {
@@ -228,7 +228,7 @@ func TestBookingService_CancelByToken(t *testing.T) {
 			bookingRepo := &mockBookingRepository{}
 			tt.setupBook(bookingRepo)
 
-			svc := NewBookingService(bookingRepo, &mockPublicEventTypeRepository{}, &mockWebhookService{})
+			svc := NewBookingService(bookingRepo, &mockPublicEventTypeRepository{}, &mockUserRepository{}, &mockWebhookService{}, nil)
 			err := svc.CancelByToken(context.Background(), tt.token, nil)
 
 			if tt.wantErr != nil {

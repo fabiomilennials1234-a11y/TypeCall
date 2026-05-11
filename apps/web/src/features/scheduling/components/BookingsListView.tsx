@@ -1,11 +1,19 @@
 import { useMemo } from 'react'
-import { Calendar, Clock, User, XCircle, AlertCircle } from 'lucide-react'
+import { Calendar, Clock, User, XCircle, AlertCircle, MessageCircle, Phone, ExternalLink } from 'lucide-react'
 
 import type { Booking } from '@/api/endpoints/bookings'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 
 import { sortBookings, getStatusConfig } from '../lib/bookings'
+
+const TAG_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+  diamond:      { bg: 'bg-[#7F77DD]/15', text: 'text-[#7F77DD]', label: 'Diamond' },
+  gold:         { bg: 'bg-[#BA7517]/15', text: 'text-[#BA7517]', label: 'Gold' },
+  silver:       { bg: 'bg-[#888780]/15', text: 'text-[#888780]', label: 'Silver' },
+  bronze:       { bg: 'bg-[#D85A30]/15', text: 'text-[#D85A30]', label: 'Bronze' },
+  disqualified: { bg: 'bg-destructive/15', text: 'text-destructive', label: 'Desq.' },
+}
 
 interface BookingsListViewProps {
   bookings: Booking[] | undefined
@@ -67,13 +75,16 @@ export function BookingsListView({
             key={booking.id}
             className="flex items-center gap-4 rounded-xl border border-border bg-card p-4"
           >
-            <div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-muted">
-              <span className="text-xs font-medium text-muted-foreground">
-                {startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-              </span>
-              <span className="text-xs text-muted-foreground">
+            <div className="flex h-14 w-14 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
+              <div className="bg-primary/10 py-0.5 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+                {startDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+              </div>
+              <div className="flex flex-1 items-center justify-center text-lg font-semibold leading-none tracking-tight text-foreground">
+                {startDate.getDate()}
+              </div>
+              <div className="border-t border-border bg-muted/30 py-0.5 text-center text-[10px] tabular-nums text-muted-foreground">
                 {startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </span>
+              </div>
             </div>
 
             <button
@@ -101,9 +112,52 @@ export function BookingsListView({
               {config.label}
             </span>
 
-            <Button variant="outline" size="sm" onClick={() => {}}>
-              Acessar
-            </Button>
+            {booking.leadTag && TAG_COLORS[booking.leadTag] && (
+              <span className={cn(
+                'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold',
+                TAG_COLORS[booking.leadTag]!.bg,
+                TAG_COLORS[booking.leadTag]!.text,
+              )}>
+                {TAG_COLORS[booking.leadTag]!.label}
+              </span>
+            )}
+
+            {booking.attendeePhone && (
+              <>
+                <a
+                  href={`https://wa.me/${booking.attendeePhone.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-emerald-500"
+                  title="WhatsApp"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                </a>
+                <a
+                  href={`tel:${booking.attendeePhone}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                  title="Ligar"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                </a>
+              </>
+            )}
+
+            {booking.locationType === 'online' && booking.meetingUrl && (
+              <a
+                href={booking.meetingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button variant="outline" size="sm">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Acessar
+                </Button>
+              </a>
+            )}
 
             {canCancel && (
               <button

@@ -17,6 +17,11 @@ export type StepType =
   | 'statement'
   | 'ending'
   | 'logic_branch'
+  | 'qualification'
+  | 'social_proof'
+  | 'alignment_video'
+
+export type LeadTag = 'diamond' | 'gold' | 'silver' | 'bronze' | 'disqualified'
 
 export type ConditionOperator =
   | 'equals'
@@ -56,6 +61,9 @@ export interface BaseNodeData {
   label: string
   description?: string
   required?: boolean
+  // Optional per-block font key (matches FONTS list in apps/web). When unset,
+  // the runner falls back to the form-level body font.
+  font?: string
 }
 
 export interface WelcomeNodeData extends BaseNodeData {
@@ -138,6 +146,30 @@ export interface ScheduleNodeData extends BaseNodeData {
   eventTypeId: string
 }
 
+export interface QualificationChoice extends Choice {
+  tag: LeadTag
+}
+
+export interface QualificationQuestion {
+  id: string
+  label: string
+  choices: QualificationChoice[]
+}
+
+export interface QualificationNodeData extends BaseNodeData {
+  questions: QualificationQuestion[]
+}
+
+export interface SocialProofNodeData extends BaseNodeData {
+  mediaUrls: string[]
+  differentialText: string
+}
+
+export interface AlignmentVideoNodeData extends BaseNodeData {
+  videoUrl: string
+  supportText?: string
+}
+
 export interface PaymentNodeData extends BaseNodeData {
   amount?: number
   currency?: string
@@ -170,6 +202,9 @@ export type QuestionData =
   | { type: 'payment'; props: PaymentNodeData }
   | { type: 'statement'; props: StatementNodeData }
   | { type: 'ending'; props: EndingNodeData }
+  | { type: 'qualification'; props: QualificationNodeData }
+  | { type: 'social_proof'; props: SocialProofNodeData }
+  | { type: 'alignment_video'; props: AlignmentVideoNodeData }
 
 export interface FlowNode {
   id: string

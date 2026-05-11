@@ -76,6 +76,49 @@ function defaultDataForType(type: StepType): QuestionData {
       return { type: 'statement', props: { label: 'Informacao', description: '', buttonText: 'Continuar' } }
     case 'ending':
       return { type: 'ending', props: { label: 'Obrigado!', description: 'Suas respostas foram enviadas.' } }
+    case 'qualification':
+      return {
+        type: 'qualification',
+        props: {
+          label: 'Qualificacao',
+          description: '',
+          required: true,
+          questions: [
+            { id: 'q1', label: 'Pergunta 1', choices: [
+              { id: 'q1c1', label: 'Sim', value: 'q1_sim', tag: 'gold' },
+              { id: 'q1c2', label: 'Nao', value: 'q1_nao', tag: 'bronze' },
+            ] },
+            { id: 'q2', label: 'Pergunta 2', choices: [
+              { id: 'q2c1', label: 'Sim', value: 'q2_sim', tag: 'silver' },
+              { id: 'q2c2', label: 'Nao', value: 'q2_nao', tag: 'bronze' },
+            ] },
+            { id: 'q3', label: 'Pergunta 3', choices: [
+              { id: 'q3c1', label: 'Sim', value: 'q3_sim', tag: 'diamond' },
+              { id: 'q3c2', label: 'Nao', value: 'q3_nao', tag: 'disqualified' },
+            ] },
+          ],
+        },
+      }
+    case 'social_proof':
+      return {
+        type: 'social_proof',
+        props: {
+          label: 'O que dizem sobre nos',
+          description: '',
+          mediaUrls: [],
+          differentialText: '',
+        },
+      }
+    case 'alignment_video':
+      return {
+        type: 'alignment_video',
+        props: {
+          label: 'Antes da reuniao',
+          description: '',
+          videoUrl: '',
+          supportText: '',
+        },
+      }
     default:
       return { type: 'short_text', props: { label: 'Pergunta', required: false } }
   }

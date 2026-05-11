@@ -45,7 +45,7 @@ func (r *availabilityRepository) ListRules(ctx context.Context, eventTypeID uuid
 	}
 	defer rows.Close()
 
-	var rules []domain.AvailabilityRule
+	rules := make([]domain.AvailabilityRule, 0)
 	for rows.Next() {
 		var rule domain.AvailabilityRule
 		if err := rows.Scan(
@@ -113,7 +113,7 @@ func (r *availabilityRepository) ListOverrides(ctx context.Context, eventTypeID 
 	}
 	defer rows.Close()
 
-	var overrides []domain.AvailabilityOverride
+	overrides := make([]domain.AvailabilityOverride, 0)
 	for rows.Next() {
 		var o domain.AvailabilityOverride
 		if err := rows.Scan(

@@ -13,10 +13,11 @@ import (
 // --- 1. mockOrganizationRepository ---
 
 type mockOrganizationRepository struct {
-	CreateFn     func(ctx context.Context, org *domain.Organization) error
-	GetByIDFn    func(ctx context.Context, id uuid.UUID) (*domain.Organization, error)
-	GetBySlugFn  func(ctx context.Context, slug string) (*domain.Organization, error)
-	SlugExistsFn func(ctx context.Context, slug string) (bool, error)
+	CreateFn         func(ctx context.Context, org *domain.Organization) error
+	GetByIDFn        func(ctx context.Context, id uuid.UUID) (*domain.Organization, error)
+	GetBySlugFn      func(ctx context.Context, slug string) (*domain.Organization, error)
+	SlugExistsFn     func(ctx context.Context, slug string) (bool, error)
+	MarkOnboardedFn  func(ctx context.Context, orgID uuid.UUID, templateFormID *uuid.UUID) error
 }
 
 func (m *mockOrganizationRepository) Create(ctx context.Context, org *domain.Organization) error {
@@ -45,6 +46,13 @@ func (m *mockOrganizationRepository) SlugExists(ctx context.Context, slug string
 		return m.SlugExistsFn(ctx, slug)
 	}
 	return false, nil
+}
+
+func (m *mockOrganizationRepository) MarkOnboarded(ctx context.Context, orgID uuid.UUID, templateFormID *uuid.UUID) error {
+	if m.MarkOnboardedFn != nil {
+		return m.MarkOnboardedFn(ctx, orgID, templateFormID)
+	}
+	return nil
 }
 
 // --- 2. mockUserRepository ---
@@ -392,6 +400,30 @@ func (m *mockBookingRepository) UpdateStatus(ctx context.Context, id uuid.UUID, 
 	return nil
 }
 
+func (m *mockBookingRepository) SetGoogleEvent(ctx context.Context, id uuid.UUID, googleEventID, meetingURL string) error {
+	return nil
+}
+
+func (m *mockBookingRepository) UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error {
+	return nil
+}
+
+func (m *mockBookingRepository) ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error) {
+	return nil, nil
+}
+
+func (m *mockBookingRepository) SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, tag domain.LeadTag) error {
+	return nil
+}
+
+func (m *mockBookingRepository) Reschedule(ctx context.Context, id uuid.UUID, newStart, newEnd time.Time) error {
+	return nil
+}
+
+func (m *mockBookingRepository) InsertHistory(ctx context.Context, h *domain.BookingHistory) error {
+	return nil
+}
+
 func (m *mockBookingRepository) Cancel(ctx context.Context, id uuid.UUID, reason *string) error {
 	if m.CancelFn != nil {
 		return m.CancelFn(ctx, id, reason)
@@ -559,6 +591,18 @@ func (m *mockAnalyticsRepository) RefreshMaterializedView(ctx context.Context) e
 		return m.RefreshMaterializedViewFn(ctx)
 	}
 	return nil
+}
+
+func (m *mockAnalyticsRepository) GetSalesOverview(ctx context.Context, orgID uuid.UUID, from time.Time) (*domain.SalesOverview, error) {
+	return &domain.SalesOverview{ByTag: map[string]int{}}, nil
+}
+
+func (m *mockAnalyticsRepository) RefreshSalesDailyMetrics(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockAnalyticsRepository) GetFormFunnel(ctx context.Context, orgID, formID uuid.UUID, from time.Time) (*domain.ABTestForm, error) {
+	return &domain.ABTestForm{FormID: formID.String()}, nil
 }
 
 // --- 12. mockPublicAnalyticsRepository ---
