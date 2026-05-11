@@ -22,6 +22,9 @@ interface TypeCallWidget {
 
 const RESPONDER_BASE = (window as unknown as Record<string, string>).__TYPECALL_URL__ ?? 'https://embed.typecall.com.br'
 
+const EASE_OUT_EXPO = 'cubic-bezier(0.16, 1, 0.3, 1)'
+const DUR_ROUTE = '350ms'
+
 const widgets: Map<string, { iframe: HTMLIFrameElement; overlay?: HTMLElement; cleanup: () => void }> = new Map()
 
 function createWidget(config: TypeCallConfig): TypeCallWidget {
@@ -45,18 +48,25 @@ function createWidget(config: TypeCallConfig): TypeCallWidget {
   } else if (mode === 'popup') {
     overlay = createOverlay()
     const modal = document.createElement('div')
-    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(500px,90vw);height:min(700px,85vh);border-radius:16px;overflow:hidden;z-index:100001;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);'
+    modal.style.cssText = `position:fixed;top:50%;left:50%;width:min(500px,90vw);height:min(700px,85vh);border-radius:16px;overflow:hidden;z-index:100001;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);transform:translate(-50%,-50%) scale(0.96);opacity:0;transition:transform ${DUR_ROUTE} ${EASE_OUT_EXPO},opacity ${DUR_ROUTE} ${EASE_OUT_EXPO};`
     iframe.style.height = '100%'
     modal.appendChild(iframe)
     document.body.appendChild(modal)
+    requestAnimationFrame(() => {
+      modal.style.transform = 'translate(-50%,-50%) scale(1)'
+      modal.style.opacity = '1'
+    })
     overlay.addEventListener('click', () => destroyWidget(formId))
   } else if (mode === 'slider') {
     overlay = createOverlay()
     const panel = document.createElement('div')
-    panel.style.cssText = 'position:fixed;top:0;right:0;width:min(420px,100vw);height:100vh;z-index:100001;box-shadow:-8px 0 30px rgba(0,0,0,0.3);'
+    panel.style.cssText = `position:fixed;top:0;right:0;width:min(420px,100vw);height:100vh;z-index:100001;box-shadow:-8px 0 30px rgba(0,0,0,0.3);transform:translateX(100%);transition:transform ${DUR_ROUTE} ${EASE_OUT_EXPO};`
     iframe.style.height = '100%'
     panel.appendChild(iframe)
     document.body.appendChild(panel)
+    requestAnimationFrame(() => {
+      panel.style.transform = 'translateX(0)'
+    })
     overlay.addEventListener('click', () => destroyWidget(formId))
   } else if (mode === 'fullpage') {
     const wrapper = document.createElement('div')
@@ -137,8 +147,11 @@ function resolveContainer(container?: string | HTMLElement): HTMLElement | null 
 
 function createOverlay(): HTMLElement {
   const overlay = document.createElement('div')
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100000;backdrop-filter:blur(2px);'
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100000;backdrop-filter:blur(2px);opacity:0;transition:opacity ${DUR_ROUTE} ${EASE_OUT_EXPO};`
   document.body.appendChild(overlay)
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1'
+  })
   return overlay
 }
 

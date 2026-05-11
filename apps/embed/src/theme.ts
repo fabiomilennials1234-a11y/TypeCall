@@ -48,7 +48,7 @@ interface ThemedRender {
 
 export function themeToCss(raw: unknown): ThemedRender {
   const t = (raw && typeof raw === 'object' ? raw : {}) as FormThemeShape
-  const radius = RADIUS_PX[t.borderRadius ?? 'lg'] ?? RADIUS_PX.lg
+  const radius: string = RADIUS_PX[t.borderRadius ?? 'lg'] ?? RADIUS_PX.lg ?? '16px'
 
   const style: CSSProperties & Record<`--${string}`, string> = {
     '--form-primary': t.primaryColor ?? 'hsl(263 70% 58%)',

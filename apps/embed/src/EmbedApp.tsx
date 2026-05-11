@@ -150,15 +150,40 @@ export function EmbedApp() {
     const endingNode = flow.nodes.find((n) => n.type === 'ending')
     return (
       <div className="form-runner flex h-screen flex-col items-center justify-center px-6" style={themed.style}>
-        <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)' }}>
-          <svg className="h-8 w-8" style={{ color: 'var(--form-primary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+        <div className="relative">
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'color-mix(in oklab, var(--form-primary) 30%, transparent)',
+              animation: 'tc-success-sonar 1s ease-out 0.2s both',
+            }}
+          />
+          <div
+            className="relative flex h-16 w-16 items-center justify-center rounded-full"
+            style={{
+              background: 'color-mix(in oklab, var(--form-primary) 15%, transparent)',
+              animation: 'tc-success-ring var(--dur-cinema) var(--ease-out-expo) both',
+            }}
+          >
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="var(--form-primary)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+              <path
+                d="M5 13l4 4L19 7"
+                strokeDasharray="30"
+                style={{ animation: 'tc-success-check 0.5s ease-out 0.25s both' }}
+              />
+            </svg>
+          </div>
         </div>
-        <h1 className="mt-5 text-xl font-bold">
+        <h1
+          className="mt-5 text-xl font-bold"
+          style={{ opacity: 0, animation: 'tc-success-text var(--dur-route) var(--ease-out-expo) 0.4s both' }}
+        >
           {(endingNode?.data.props.label as string) ?? 'Obrigado!'}
         </h1>
-        <p className="mt-2 text-center text-sm opacity-70">
+        <p
+          className="mt-2 text-center text-sm"
+          style={{ opacity: 0, animation: 'tc-success-text var(--dur-route) var(--ease-out-expo) 0.5s both' }}
+        >
           {(endingNode?.data.props.description as string) ?? 'Suas respostas foram enviadas com sucesso.'}
         </p>
       </div>
@@ -170,14 +195,23 @@ export function EmbedApp() {
   return (
     <div ref={containerRef} className="form-runner flex h-screen flex-col" style={themed.style}>
       <div className="h-1 w-full bg-black/20">
-        <div className="h-1 transition-all duration-500" style={{ width: `${progress}%`, background: 'var(--form-primary)' }} />
+        <div
+          className="h-1"
+          style={{
+            width: `${progress}%`,
+            background: 'var(--form-primary)',
+            transition: 'width var(--dur-route) var(--ease-out-expo)',
+          }}
+        />
       </div>
 
       <div className={`flex flex-1 flex-col justify-center px-6 ${themed.alignment === 'center' ? 'items-center text-center' : 'items-start'}`}>
         <div
           key={currentNode.id}
-          className="w-full max-w-lg animate-[fadeSlideIn_0.3s_ease-out]"
-          style={{ animationDirection: direction === 'backward' ? 'reverse' : 'normal' }}
+          className="w-full max-w-lg"
+          style={{
+            animation: `${direction === 'backward' ? 'tc-step-enter-backward' : 'tc-step-enter-forward'} var(--dur-route) var(--ease-out-expo) both`,
+          }}
         >
           <RunnerStep
             node={currentNode}
@@ -195,13 +229,13 @@ export function EmbedApp() {
         <button
           onClick={previous}
           disabled={history.length < 2}
-          className="rounded-lg px-3 py-2 text-sm opacity-60 transition-opacity hover:opacity-100 disabled:opacity-20"
+          className="rounded-lg px-3 py-2 text-sm opacity-60 transition-all duration-150 hover:opacity-100 active:scale-[0.96] disabled:opacity-20"
         >
           ← Voltar
         </button>
         <button
           onClick={next}
-          className="px-5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="px-5 py-2 text-sm font-medium text-white transition-all duration-150 hover:opacity-90 hover:scale-[1.02] active:scale-[0.96]"
           style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
         >
           {currentNode.type === 'ending' ? 'Enviar' : 'Continuar →'}
