@@ -154,7 +154,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 
 	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
 	formSvc := service.NewFormService(formRepo, formVersionRepo)
-	responseSvc := service.NewResponseService(responseRepo, publicFormRepo)
+	responseSvc := service.NewResponseService(responseRepo, publicFormRepo, bookingRepo)
 	etSvc := service.NewEventTypeService(eventTypeRepo)
 	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo, gcalProvider)
 	webhookSvc := service.NewWebhookService(webhookRepo)
@@ -339,6 +339,14 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 
 			r.Get("/", qualificationHandler.GetScore)
 			r.Post("/", qualificationHandler.RescoreResponse)
+		})
+
+		r.Route("/responses/{responseID}", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", responseHandler.Get)
 		})
 
 		r.Route("/sellers", func(r chi.Router) {

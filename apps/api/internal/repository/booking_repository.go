@@ -31,6 +31,7 @@ type BookingRepository interface {
 	UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error
 	ListByOrg(ctx context.Context, orgID uuid.UUID, sellerID *uuid.UUID) ([]domain.Booking, error)
 	SetLeadTagByResponse(ctx context.Context, responseID uuid.UUID, tag domain.LeadTag) error
+	LinkResponse(ctx context.Context, bookingID, orgID, responseID uuid.UUID) error
 	Reschedule(ctx context.Context, id uuid.UUID, newStart, newEnd time.Time) error
 	InsertHistory(ctx context.Context, h *domain.BookingHistory) error
 }
@@ -354,6 +355,19 @@ func (r *bookingRepository) scanBookingRow(rows pgx.Rows) (*domain.Booking, erro
 }
 
 // --- Sales Deals additions ----------------------------------------------
+
+func (r *bookingRepository) LinkResponse(ctx context.Context, bookingID, orgID, responseID uuid.UUID) error {
+	conn := db.Conn(ctx, r.pool)
+	_, err := conn.Exec(ctx,
+		`UPDATE bookings SET response_id = $3, updated_at = now()
+		 WHERE id = $1 AND organization_id = $2 AND response_id IS NULL`,
+		bookingID, orgID, responseID,
+	)
+	if err != nil {
+		return fmt.Errorf("BookingRepository.LinkResponse: %w", err)
+	}
+	return nil
+}
 
 func (r *bookingRepository) UpdateKanbanStatus(ctx context.Context, id uuid.UUID, status domain.KanbanStatus) error {
 	conn := db.Conn(ctx, r.pool)
