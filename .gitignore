@@ -36,3 +36,6 @@ coverage/
 
 # Build
 *.log
+
+# Runtime uploads
+apps/api/data/
