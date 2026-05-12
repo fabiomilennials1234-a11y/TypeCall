@@ -217,3 +217,27 @@ O step type `calendar_booking` integra o [[Scheduling Engine]] diretamente no [[
 ## Proxima Fase
 
 → [[Fase 4 - Embed]]
+
+---
+
+## Iteracoes Pos-Entrega
+
+### 2026-05-07 — Toggle Lista / Agenda em /bookings
+
+A tela `/bookings` ganhou duas visoes alternaveis:
+
+- **Lista**: cards ordenados por proximidade. Proxima reuniao futura sempre no topo (asc), passadas no fim (desc). Botao "Acessar" decorativo por reuniao (placeholder para feature futura).
+- **Agenda**: grid mensal Dom-Sab com chips de reuniao por dia (cor do status), navegacao prev/next mes, chip clicavel abre modal de detalhes.
+
+Modal `BookingDetailDialog` mostra attendee, status, data/hora, duracao, timezone, email/phone clicaveis, location/link, notes. Botao Cancelar reusa `cancelMutation` quando status `pending|confirmed`.
+
+Arquivos:
+
+- `apps/web/src/features/scheduling/lib/bookings.ts` — helpers puros (sortBookings, groupBookingsByDay, getMonthGrid, statusConfig)
+- `apps/web/src/features/scheduling/lib/bookings.test.ts` — 22 testes vitest
+- `apps/web/src/features/scheduling/components/BookingsListView.tsx`
+- `apps/web/src/features/scheduling/components/BookingsCalendarView.tsx`
+- `apps/web/src/features/scheduling/components/BookingDetailDialog.tsx`
+- `apps/web/src/features/scheduling/BookingsPage.tsx` — refatorado em shell com toggle
+
+Decisao: [[../../.specs/project/STATE|D030]].

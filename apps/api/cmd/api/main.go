@@ -11,20 +11,33 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/oauth2"
+	googleoauth "golang.org/x/oauth2/google"
 
 	"github.com/typecall/api/internal/config"
+	cryptohelper "github.com/typecall/api/internal/crypto"
 	"github.com/typecall/api/internal/db"
 	"github.com/typecall/api/internal/handler"
+	"github.com/typecall/api/internal/integration/gcal"
 	mw "github.com/typecall/api/internal/middleware"
 	"github.com/typecall/api/internal/observability"
+	"github.com/typecall/api/internal/onboarding"
+	"github.com/typecall/api/internal/pixels"
+	"github.com/typecall/api/internal/publicschedule"
+	"github.com/typecall/api/internal/qualification"
 	"github.com/typecall/api/internal/repository"
+	"github.com/typecall/api/internal/sellers"
 	"github.com/typecall/api/internal/service"
 	"github.com/typecall/api/migrations"
 )
 
 func main() {
+	// Load .env if present. Real env vars take precedence (godotenv default).
+	_ = godotenv.Load()
+
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
@@ -62,6 +75,23 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+
+	// Refresh sales_daily_metrics a cada 1h em background.
+	bgRepo := repository.NewAnalyticsRepository(pool)
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := bgRepo.RefreshSalesDailyMetrics(context.Background()); err != nil {
+					log.Warn().Err(err).Msg("sales_daily_metrics refresh failed")
+				}
+			}
+		}
+	}()
 
 	go func() {
 		log.Info().
@@ -105,17 +135,49 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookRepo := repository.NewWebhookRepository(pool)
 	analyticsRepo := repository.NewAnalyticsRepository(pool)
 	pubAnalyticsRepo := repository.NewPublicAnalyticsRepository(pool)
+	integrationRepo := repository.NewIntegrationRepository(pool)
+	assetRepo := repository.NewAssetRepository(pool)
+	abTestRepo := repository.NewABTestRepository(pool)
+
+	encKey, err := cryptohelper.DeriveKey(cfg.EncryptionKey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to derive encryption key")
+	}
+	gcalOAuth := &oauth2.Config{
+		ClientID:     cfg.GoogleClientID,
+		ClientSecret: cfg.GoogleClientSecret,
+		RedirectURL:  cfg.GoogleRedirectURI,
+		Scopes:       service.GoogleScopes,
+		Endpoint:     googleoauth.Endpoint,
+	}
+	gcalProvider := gcal.NewProvider(integrationRepo, gcalOAuth, encKey)
 
 	authSvc := service.NewAuthService(orgRepo, userRepo, tokenRepo, cfg.JWTSecret, cfg.CSRFSecret)
 	formSvc := service.NewFormService(formRepo, formVersionRepo)
-	responseSvc := service.NewResponseService(responseRepo, publicFormRepo)
+	responseSvc := service.NewResponseService(responseRepo, publicFormRepo, bookingRepo)
 	etSvc := service.NewEventTypeService(eventTypeRepo)
-	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo)
+	availSvc := service.NewAvailabilityService(availRepo, eventTypeRepo, bookingRepo, pubETRepo, gcalProvider)
 	webhookSvc := service.NewWebhookService(webhookRepo)
-	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, webhookSvc)
+	bookingSvc := service.NewBookingService(bookingRepo, pubETRepo, userRepo, webhookSvc, gcalProvider)
 	analyticsSvc := service.NewAnalyticsService(analyticsRepo, pubAnalyticsRepo, responseRepo)
+	service.WireABTestRepo(analyticsSvc, abTestRepo)
+	assetSvc := service.NewAssetService(assetRepo, "data/uploads")
 
-	authHandler := handler.NewAuthHandler(authSvc, cfg.IsProduction())
+	integrationSvc := service.NewIntegrationService(
+		integrationRepo,
+		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURI,
+		cfg.CSRFSecret,
+		encKey,
+	)
+	googleSigninSvc := service.NewGoogleSigninService(
+		authSvc,
+		integrationRepo,
+		cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleSigninRedirectURI,
+		cfg.CSRFSecret,
+		encKey,
+	)
+
+	authHandler := handler.NewAuthHandler(authSvc, googleSigninSvc, cfg.WebBaseURL, cfg.IsProduction())
 	formHandler := handler.NewFormHandler(formSvc)
 	responseHandler := handler.NewResponseHandler(responseSvc)
 	publicHandler := handler.NewPublicHandler(responseSvc)
@@ -125,6 +187,30 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
 	pubEventsHandler := handler.NewPublicEventsHandler(analyticsSvc, pool)
+	integrationHandler := handler.NewIntegrationHandler(integrationSvc, cfg.WebBaseURL)
+	gcalWebhookHandler := handler.NewGCalWebhookHandler()
+	assetHandler := handler.NewAssetHandler(assetSvc)
+	salesAnalyticsHandler := handler.NewSalesAnalyticsHandler(analyticsSvc, abTestRepo)
+
+	// Sales Deals modules
+	qualificationRepo := qualification.NewRepository(pool)
+	qualificationSvc := qualification.NewService(qualificationRepo, responseRepo, bookingSvc)
+	qualificationHandler := qualification.NewHandler(qualificationSvc)
+
+	sellersRepo := sellers.NewRepository(pool)
+	sellersSvc := sellers.NewService(sellersRepo, bookingRepo)
+	sellersHandler := sellers.NewHandler(sellersSvc)
+	service.WireAuthSellerBootstrapper(authSvc, sellersSvc)
+
+	pixelsRepo := pixels.NewRepository(pool)
+	pixelsSvc := pixels.NewService(pixelsRepo)
+	pixelsHandler := pixels.NewHandler(pixelsSvc)
+
+	onboardingSvc := onboarding.NewService(orgRepo, sellersSvc, pixelsSvc, formSvc, pixelsRepo)
+	onboardingHandler := onboarding.NewHandler(onboardingSvc)
+
+	publicScheduleSvc := publicschedule.NewService(pool, publicFormRepo, sellersSvc, bookingRepo, userRepo, gcalProvider)
+	publicScheduleHandler := publicschedule.NewHandler(publicScheduleSvc)
 
 	r := chi.NewRouter()
 
@@ -135,6 +221,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 	r.Use(mw.CORS(mw.NewCORSConfig(cfg.CORSOrigins, cfg.IsDevelopment())))
 	r.Use(mw.BodyLimit(mw.DefaultBodyLimit))
 	r.Use(mw.RateLimit(rdb, mw.DefaultRateLimitConfig()))
+
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("data/uploads"))))
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -166,6 +254,9 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Post("/refresh", authHandler.Refresh)
 			r.Post("/logout", authHandler.Logout)
 
+			r.Get("/google/authorize", authHandler.GoogleSigninAuthorize)
+			r.Get("/google/callback", authHandler.GoogleSigninCallback)
+
 			r.Group(func(r chi.Router) {
 				r.Use(mw.Auth(authSvc))
 				r.Get("/me", authHandler.Me)
@@ -186,6 +277,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 				r.Delete("/", formHandler.Delete)
 				r.Patch("/draft", formHandler.SaveDraft)
 				r.Post("/publish", formHandler.Publish)
+				r.Post("/assets", assetHandler.Upload)
 
 				r.Route("/responses", func(r chi.Router) {
 					r.Get("/", responseHandler.List)
@@ -222,8 +314,77 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Use(mw.Tenant(pool))
 
 			r.Get("/", bookingHandler.List)
+			r.Get("/kanban", bookingHandler.Kanban)
 			r.Get("/{bookingID}", bookingHandler.Get)
 			r.Post("/{bookingID}/cancel", bookingHandler.Cancel)
+			r.Patch("/{bookingID}/status", bookingHandler.UpdateKanbanStatus)
+			r.Post("/{bookingID}/reschedule", bookingHandler.Reschedule)
+		})
+
+		r.Route("/forms/{formID}/qualification-rules", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/", qualificationHandler.CreateRule)
+			r.Get("/", qualificationHandler.ListRules)
+			r.Patch("/{ruleID}", qualificationHandler.UpdateRule)
+			r.Delete("/{ruleID}", qualificationHandler.DeleteRule)
+		})
+
+		r.Route("/responses/{responseID}/score", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", qualificationHandler.GetScore)
+			r.Post("/", qualificationHandler.RescoreResponse)
+		})
+
+		r.Route("/responses/{responseID}", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", responseHandler.Get)
+		})
+
+		r.Route("/sellers", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/", sellersHandler.Create)
+			r.Get("/", sellersHandler.List)
+
+			r.Route("/{sellerID}", func(r chi.Router) {
+				r.Get("/", sellersHandler.Get)
+				r.Patch("/", sellersHandler.Update)
+				r.Get("/availability", sellersHandler.GetAvailability)
+				r.Put("/availability", sellersHandler.SetAvailability)
+				r.Get("/goals", sellersHandler.ListGoals)
+				r.Post("/goals", sellersHandler.CreateGoal)
+				r.Get("/slots", sellersHandler.GetSlots)
+			})
+		})
+
+		r.Route("/settings/pixel", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/", pixelsHandler.Get)
+			r.Put("/", pixelsHandler.Upsert)
+		})
+
+		r.Route("/onboarding", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Get("/state", onboardingHandler.State)
+			r.Post("/skip", onboardingHandler.Skip)
+			r.Post("/complete", onboardingHandler.Complete)
 		})
 
 		r.Route("/analytics", func(r chi.Router) {
@@ -236,6 +397,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Get("/forms/{formID}/dropoff", analyticsHandler.GetStepDropoff)
 			r.Get("/forms/{formID}/export", analyticsHandler.ExportCSV)
 			r.Post("/refresh", analyticsHandler.RefreshMetrics)
+
+			r.Get("/sales-overview", salesAnalyticsHandler.Overview)
+			r.Get("/ab-test", salesAnalyticsHandler.ABTest)
+		})
+
+		r.Route("/funnels", func(r chi.Router) {
+			r.Use(mw.Auth(authSvc))
+			r.Use(mw.CSRF)
+			r.Use(mw.Tenant(pool))
+
+			r.Post("/ab-test", salesAnalyticsHandler.CreateABTest)
 		})
 
 		r.Route("/webhooks", func(r chi.Router) {
@@ -249,6 +421,19 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 			r.Delete("/config", webhookHandler.DeleteConfig)
 			r.Get("/deliveries", webhookHandler.ListDeliveries)
 			r.Post("/deliveries/{deliveryID}/retry", webhookHandler.RetryDelivery)
+		})
+
+		r.Route("/integrations", func(r chi.Router) {
+			r.Get("/google/callback", integrationHandler.GoogleCallback)
+
+			r.Group(func(r chi.Router) {
+				r.Use(mw.Auth(authSvc))
+				r.Use(mw.Tenant(pool))
+
+				r.Get("/google", integrationHandler.GoogleStatus)
+				r.Get("/google/authorize", integrationHandler.GoogleAuthorize)
+				r.Delete("/google", integrationHandler.GoogleDisconnect)
+			})
 		})
 
 		r.Route("/public/forms/{slug}", func(r chi.Router) {
@@ -267,6 +452,15 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, rdb *redis.Client) *chi.M
 		r.Post("/public/bookings/cancel/{token}", pubBookingHandler.CancelByToken)
 
 		r.Post("/public/events", pubEventsHandler.IngestEvents)
+
+		r.Get("/public/settings/pixel", pixelsHandler.PublicGet)
+
+		r.Route("/public/schedule", func(r chi.Router) {
+			r.Get("/slots", publicScheduleHandler.Slots)
+			r.Post("/book", publicScheduleHandler.Book)
+		})
+
+		r.Post("/webhooks/gcal", gcalWebhookHandler.Notify)
 	})
 
 	return r

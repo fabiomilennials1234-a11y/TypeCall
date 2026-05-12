@@ -6,7 +6,7 @@ export interface AuthUser {
     organizationId: string
     email: string
     name: string
-    role: 'admin' | 'member' | 'master'
+    role: 'admin' | 'member' | 'master' | 'seller'
     avatarUrl: string | null
     timezone: string
     isActive: boolean
@@ -21,6 +21,8 @@ export interface AuthUser {
     logoUrl: string | null
     timezone: string
     plan: 'free' | 'starter' | 'pro' | 'enterprise'
+    onboardedAt: string | null
+    templateFormId: string | null
     createdAt: string
     updatedAt: string
   }

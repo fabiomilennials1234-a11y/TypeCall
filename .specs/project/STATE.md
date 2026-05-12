@@ -1,6 +1,6 @@
 # Project State
 
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-11
 
 ---
 
@@ -130,6 +130,138 @@ loader.js detecta `[data-typecall-form]` no DOM e inicializa automaticamente. AP
 
 Eventos de analytics (view, start, question_seen, question_answered, submit, abandon) coletados no frontend (runner + embed) e enviados em batch pro /api/v1/public/events (publico, sem auth). Dedup via event_id (UUID) com ON CONFLICT DO NOTHING. Batch size 5 ou flush a cada 2s. Abandon usa navigator.sendBeacon pra garantir envio no beforeunload. Materialized view form_daily_metrics atualizada via REFRESH CONCURRENTLY.
 
+### D032: Form Theming editavel (cores, fontes, fundo, forma) (2026-05-07)
+
+Sprints 1-12 entregues em branch feature/form-theming.
+
+**Schema**: reusa `forms.theme` JSONB existente (migration 0002, vazio ate hoje). Shape `FormTheme` documentado em `apps/web/src/features/builder/lib/theme.ts`. Validado server-side em form_handler com DisallowUnknownFields + enums + regex CSS color (previne injection arbitraria).
+
+**Storage de assets**: nova tabela `form_assets` (migration 0008) + filesystem `data/uploads/{org_id}/{uuid}.{ext}`. Endpoint POST /api/v1/forms/:formID/assets (multipart, image/* up to 5MB). Static handler em /uploads/* serve em dev; nginx em prod (montar volume `data/uploads`).
+
+**Fontes**: lista curada de 8 Google Fonts (Inter, Geist, Manrope, Space Grotesk, Playfair Display, Cormorant Garamond, Crimson Pro, JetBrains Mono) carregadas via single `<link>` em `index.html` com display=swap. Decisao curada > open: controle de qualidade (padrao Vercel/Linear).
+
+**Background**: 3 modos — color (color picker), gradient (2 stops + angle slider 0-360 + preview live), image (drag-drop upload). Discriminated union no TS.
+
+**UI Builder**: ThemePanel renderizado no PropertyPanel quando `node === null` (substitui placeholder). 4 sections (Fundo, Cores, Tipografia, Forma). Auto-save dedicado debounce 1.5s via useThemeAutoSave (PATCH /forms/:id).
+
+**Aplicacao runtime**: themeToCss(theme) retorna CSSProperties com vars `--form-primary`, `--form-text`, `--form-card`, `--form-radius`, `--form-heading-font`, `--form-body-font` + background computado. FormRunnerPage e EmbedApp aplicam ambos. Forms antigos sem theme caem em defaultTheme — render visualmente identico ao anterior (nao regride).
+
+**Limitacao conhecida**: theme.ts duplicado entre apps/web e apps/embed. Consolidar em packages/shared em iteracao futura.
+
+### D031: Integracao Google OAuth + Google Calendar (2026-05-07)
+
+D023 adiou GCal na Fase 3. Agora trazido. Sprint A-H entregues em branch feature/google-integration.
+
+**OAuth flow**:
+- `/api/v1/integrations/google/{authorize,callback,disconnect}` (auth required) — usuario logado conecta sua conta Google.
+- `/api/v1/auth/google/{authorize,callback}` (publico) — Sign in with Google. Auto-cria User+Org se email novo (slug derivado do dominio do email com fallback uuid). Persiste credenciais GCal automaticamente.
+- State CSRF: JWT HS256 assinado com CSRFSecret. Claims: uid+oid+nonce (link) ou purpose=signin+nonce (signin). TTL 10min.
+- 2 redirect URIs separadas registradas em Google Console (`GOOGLE_REDIRECT_URI` + `GOOGLE_SIGNIN_REDIRECT_URI`).
+
+**Storage**:
+- Tabela `integration_credentials` (migration 0007). Tokens AES-256-GCM via internal/crypto. Nonce 96-bit per ciphertext. UNIQUE(user_id, provider). RLS por organization_id.
+
+**GCal client** (internal/integration/gcal):
+- google.golang.org/api/calendar/v3.
+- Token refresh transparente via persistingTokenSource (re-encripta access token rotacionado).
+- Circuit breaker per-user: 3 falhas consecutivas → open 60s → half-open.
+- FreeBusy integrado em availability_service (busy slots merged em existingBookings antes do conflict check). Soft-fail em GCal outage (log + segue com bookings internos).
+
+**Booking sync**:
+- bookingService.Create dispara CreateEvent (host accepted + attendee invited + Google Meet auto via conferenceData). Soft-fail mantem booking sem meeting_url; UI oculta "Acessar".
+- Cancel dispara DeleteEvent.
+
+**Watch channels**:
+- Stub /webhooks/gcal recebe push notifications. Setup completo + cron de renovacao + cache invalidation deferidos pra sprint futura quando Redis cache de slots existir.
+
+**Bot Acessar**: oculto sem meeting_url. Click abre Meet em nova aba.
+
+### D033: Onboarding wizard org-level com flush-on-complete (2026-05-08)
+
+Wizard de configuracao inicial pos-register/login. Gate em AppLayout: `organization.onboardedAt == null AND user.role IN (admin, master)` → redirect /onboarding. Sellers convidados nao veem.
+
+**Persistencia**: flush-on-complete. POST /onboarding/complete em transaction unica via tenant middleware (D016): upsert seller (CreateDefaultForOwner idempotente), replace seller_availability, upsert pixel_config, create form (status=draft) + save flow_definition, UPDATE organizations SET onboarded_at=now(), template_form_id=form.id. localStorage `tc:onboarding:draft` backup client-side (TTL 24h, removido apos 200).
+
+**Skip**: POST /onboarding/skip seta apenas onboarded_at = now() sem entidades. Banner persistente em SalesDashboard (futuro: implementar).
+
+**Idempotencia**: complete em org ja onboardada retorna 200 com `{already_onboarded: true, formId: org.template_form_id}` sem novos inserts.
+
+**Role check**: handler rejeita 403 se role nao for admin/master (defense in depth alem do gate frontend).
+
+**Pixel ID validation**: regex `^\d{15,16}$` no service (Meta usa 15-16 digitos). Bloqueia injection no client `fbq('init', pixelId)`.
+
+**Form como draft**: template criado com status=draft. Admin redireciona pra /forms/:id/builder pos-finalize, edita conteudo, publica quando pronto. Match expectativa de produto > publish auto.
+
+Migration 0015: `organizations.onboarded_at TIMESTAMPTZ`, `organizations.template_form_id UUID REFERENCES forms(id) ON DELETE SET NULL`, index parcial em onboarded_at IS NULL.
+
+### D034: Templates de form como codigo (JSON estatico) (2026-05-08)
+
+Template default e funcao TS pura em `packages/shared/src/templates/quiz-default.ts`. Versionamento via git. Sem tabela form_templates. Razoes: template e codigo, nao dado de cliente; sem migration extra; sem RLS; sem tcgcio dual source. Galeria de templates futura usa registry pattern (`TEMPLATE_REGISTRY`) — sem migrar pra DB.
+
+`buildQuizDefaultFlow(opts)` retorna FlowDefinition com 7 etapas: contato (toggleavel por contact_fields: name/email/company/instagram/whatsapp), dor (long_text), produto (checkboxes), qualificacao (3 perguntas com tags), aumento de consciencia (2 social_proof + 1 statement), schedule, alignment_video. Edges lineares 0→...→6. nanoid IDs.
+
+Reuso de step types existentes do flow-engine (sem novo type composto `contact_info`) — Typeform-style one-question-per-screen ja garante UX agrupada visualmente.
+
+### D035: Seller baseline no register (2026-05-08)
+
+Auth.Register e GoogleSignin invocam `seller_service.CreateDefaultForOwner(userID, orgID, name)` apos user create. Idempotente (lookup GetByUser primeiro). Cria seller com defaults 30min/15buffer/online + availability Seg-Sex 09:00-18:00.
+
+Soft-fail: erro de seller bootstrap nao quebra register. Log warn. Onboarding wizard reconfigura quando user passar.
+
+Garantia: org sempre tem 1 seller ativo desde o segundo zero. Schedule step do form runner nunca quebra por "nenhum seller na org". (b) bloquear publish de form com schedule sem seller foi vetado pelo Senior por redundancia.
+
+Wire via `service.WireAuthSellerBootstrapper(authSvc, sellersSvc)` em main.go — setter pos-construcao evita ciclo de import (sellers depende de varias coisas; service usa interface minima `SellerBootstrapper`).
+
+### D036: Pixel public endpoint via form slug (2026-05-08)
+
+`GET /api/v1/public/settings/pixel?slug=<form_slug>` resolve org via form e retorna pixel_config dessa org. Sem RLS (pool direto, JOIN forms+pixel_config). Runner consome em useMetaPixel(slug) e injeta fbevents.js + dispara Lead/Schedule conforme flags fire_on_start / fire_on_booking.
+
+### D037: Motion lib em apps/web, CSS-only em apps/embed (2026-05-11)
+
+Animacoes plataforma-wide. apps/web usa `motion@^12.38.0` (Framer Motion v12+ renomeada). apps/embed mantem CSS-only (preserva D027 budget 66kb gz).
+
+**Tokens compartilhados**: easing `outExpo` cubic-bezier(0.16, 1, 0.3, 1) + `inOut` cubic-bezier(0.4, 0, 0.2, 1). Durations `tap=120ms`, `micro=200ms`, `route=350ms`, `cinema=600ms`. Override automatico em `prefers-reduced-motion: reduce` zera durations.
+
+**Web (`apps/web/src/lib/motion.ts`)**: DUR/EASE constantes, useReducedMotion re-export, withReducedMotion helper. Variants compartilhadas em `staggerList.ts`. AnimatedNumber em `components/ui/AnimatedNumber.tsx` usa useMotionValue + animate.
+
+**Aplicacoes (web)**:
+- Route transitions: AnimatePresence mode="wait" em AppLayout (fade+y subtle)
+- Sidebar active pill: layoutId magic-move
+- Listagens (Forms, Bookings, SalesDashboard): listContainer/Item variants + stagger 40ms
+- KpiCards: AnimatedNumber tick na entrada e em updates
+- Builder canvas: motion.div com layout prop + AnimatePresence pra block insert/remove. Coexistencia com @dnd-kit removendo transition string do useSortable.style (so transform). motion gerencia reflow.
+- PropertyPanel: AnimatePresence swap Editor↔Theme com slide x
+- SaveIndicator: swap fade+y entre saving/saved/dirty, bullet amber com pulse infinito
+- Runner: step transitions vertical y±24 com direction custom variants. Submit cinematografico (ring sonar scale 2.2 + ring base scale 0→1.1→1 + checkmark pathLength + text stagger)
+- Botoes: whileHover scale 1.02, whileTap scale 0.96
+
+**Preview revamp (substitui BuilderPreview lateral 320px)**:
+- DevicePreview overlay z-50 com backdrop blur. Device frame centralizado.
+- 3 viewports: mobile 390x780 r=32, tablet 768x1024 r=20, desktop 1280x800 r=12. Border 10px solid pra chrome.
+- Sync canvas→preview: selectedNodeId define initialStepIndex
+- Hotkey Ctrl/Meta+P toggle overlay (preventDefault do print)
+- Esc fecha, click backdrop fecha, setas left/right navegam steps
+- PreviewStep extraido pra arquivo proprio, expandido pra 13 step types (welcome, schedule, rating, nps, etc)
+- BuilderPreview deletado (sem mais consumidor)
+
+**Embed (CSS-only)**:
+- Tokens replicados em `apps/embed/src/styles.css` (:root vars + media query)
+- Keyframes `tc-step-enter-forward/backward`, `tc-success-ring/sonar/check`, `tc-success-text` (prefix `tc-` evita colisao com host site)
+- Step transitions via animation property dinamica (direction-based)
+- Botoes: Tailwind `transition-all duration-150 hover:scale-[1.02] active:scale-[0.96]`
+- Loader popup/slider abrem com RAF trick (set initial style → next frame final → transition triggers)
+- Bundle delta: responder +1.2kb gz (66→67.26 — dentro do budget D027), loader +150b (1.26→1.41kb gz)
+
+Detalhes em [[ADR-007-motion-lib-e-anim-tokens]] e [[Animations]] na pasta Features.
+
+### D030: Tela /bookings com toggle Lista | Agenda (2026-05-07)
+
+Tela de Reunioes ganha duas visoes alternaveis:
+- **Lista**: cards verticais ordenados por proximidade (futuras asc primeiro, passadas desc no fim). Botao "Acessar" decorativo por reuniao (sem acao por enquanto, reservado para feature futura de sala/portal).
+- **Agenda**: grid mensal estilo Google Calendar (7 colunas Dom-Sab, ate 3 chips por dia + overflow), navegacao prev/next mes. Click em chip abre `BookingDetailDialog` (reusa cancelMutation).
+
+Duas queries TanStack distintas: `['bookings','list']` (limit 100) e `['bookings','calendar', monthKey]` (from/to do mes, limit 200). cancelMutation invalida ambas. Helpers de data via Date API nativa (sem date-fns) em `features/scheduling/lib/bookings.ts` com 22 testes vitest.
+
 ---
 
 ## Blockers
@@ -176,6 +308,14 @@ Nenhum no momento.
   - [x] 9.6 Infra producao: docker-compose.prod.yml, Dockerfile Go 1.25 + web Dockerfile + nginx, .env.example
   - [x] 9.7 Observabilidade: /metrics endpoint (uptime, goroutines, heap, request/error counters), zerolog structured logging
   - [x] 9.8 Polish: error states em 10 pages, PT-BR accents fix, index.html meta/OG tags
+- [x] Sprint 11: Onboarding wizard
+  - [x] Migration 0015: organizations.onboarded_at + template_form_id
+  - [x] Template quiz-default em packages/shared
+  - [x] Seller baseline no register (admin/master)
+  - [x] Onboarding API: state, skip, complete (TX unica, idempotente)
+  - [x] Wizard frontend: 5 telas (welcome, agenda, pixel, funil, resumo) com localStorage backup
+  - [x] Gate em AppLayout pra admin/master sem onboarded_at
+  - [x] Pixel public endpoint via slug do form
 - [ ] Sprint 10: Validacao Local E2E
   - [ ] Auto-migration on boot (embed.FS + schema_migrations table)
   - [ ] docker-compose.yml com API service integrado

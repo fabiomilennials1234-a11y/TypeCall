@@ -55,6 +55,22 @@
   --ring: 263 70% 58%;
   --sidebar: 240 10% 5%;
   --sidebar-foreground: 240 5% 64.9%;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-tap: 120ms;
+  --dur-micro: 200ms;
+  --dur-route: 350ms;
+  --dur-cinema: 600ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-tap: 0ms;
+    --dur-micro: 0ms;
+    --dur-route: 0ms;
+    --dur-cinema: 0ms;
+  }
 }
 
 .light {

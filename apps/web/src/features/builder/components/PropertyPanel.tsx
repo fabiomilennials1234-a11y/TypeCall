@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { X, Plus, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import type { FlowNode, QuestionData, Choice } from '@typecall/flow-engine'
@@ -7,34 +8,69 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import * as eventTypesApi from '@/api/endpoints/eventTypes'
 import { cn } from '@/lib/cn'
+import { DUR, EASE } from '@/lib/motion'
+
+import type { FormTheme } from '../lib/theme'
+import { ThemePanel } from './ThemePanel'
+import { FontPickerField } from './theme/FontPickerField'
+import type { FontKey } from '../lib/fonts'
+import { QualificationBlock } from './blocks/QualificationBlock'
+import { SocialProofBlock } from './blocks/SocialProofBlock'
+import { AlignmentVideoBlock } from './blocks/AlignmentVideoBlock'
+import type {
+  QualificationNodeData,
+  SocialProofNodeData,
+  AlignmentVideoNodeData,
+} from '@typecall/flow-engine'
 
 interface PropertyPanelProps {
   node: FlowNode | null
   onUpdate: (nodeId: string, data: QuestionData) => void
   onClose: () => void
+  formId: string
+  theme: FormTheme
+  onThemeChange: (next: FormTheme) => void
 }
 
-export function PropertyPanel({ node, onUpdate, onClose }: PropertyPanelProps) {
-  if (!node) {
-    return (
-      <div className="flex h-full w-72 items-center justify-center border-l border-border bg-card">
-        <p className="text-sm text-muted-foreground">Selecione um bloco para editar</p>
-      </div>
-    )
-  }
+export function PropertyPanel({ node, onUpdate, onClose, formId, theme, onThemeChange }: PropertyPanelProps) {
+  const transition = { duration: DUR.micro, ease: EASE.outExpo }
 
   return (
-    <div className="flex h-full w-72 flex-col border-l border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">Propriedades</h2>
-        <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <div className="relative h-full w-72 shrink-0 overflow-hidden">
+      <AnimatePresence mode="wait" initial={false}>
+        {node ? (
+          <motion.div
+            key="editor"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={transition}
+            className="flex h-full w-72 flex-col border-l border-border bg-card"
+          >
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-sm font-semibold text-foreground">Propriedades</h2>
+              <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        <PropertyFields node={node} onUpdate={onUpdate} />
-      </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <PropertyFields node={node} onUpdate={onUpdate} formId={formId} />
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="theme"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={transition}
+            className="h-full"
+          >
+            <ThemePanel formId={formId} theme={theme} onChange={onThemeChange} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -42,9 +78,10 @@ export function PropertyPanel({ node, onUpdate, onClose }: PropertyPanelProps) {
 interface PropertyFieldsProps {
   node: FlowNode
   onUpdate: (nodeId: string, data: QuestionData) => void
+  formId: string
 }
 
-function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
+function PropertyFields({ node, onUpdate, formId }: PropertyFieldsProps) {
   const { data } = node
 
   const updateProp = useCallback(
@@ -67,6 +104,12 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
           placeholder="Titulo do bloco"
         />
       </FieldGroup>
+
+      <FontPickerField
+        label="Fonte do bloco"
+        value={(data.props.font as FontKey | undefined) ?? 'inter'}
+        onChange={(font) => updateProp('font', font)}
+      />
 
       {'description' in data.props && (
         <FieldGroup label="Descricao">
@@ -140,6 +183,28 @@ function PropertyFields({ node, onUpdate }: PropertyFieldsProps) {
         <EventTypeSelector
           value={(data.props as { eventTypeId: string }).eventTypeId}
           onChange={(id) => updateProp('eventTypeId', id)}
+        />
+      )}
+
+      {node.type === 'qualification' && (
+        <QualificationBlock
+          data={data.props as QualificationNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'qualification', props: next } as QuestionData)}
+        />
+      )}
+
+      {node.type === 'social_proof' && (
+        <SocialProofBlock
+          formId={formId}
+          data={data.props as SocialProofNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'social_proof', props: next } as QuestionData)}
+        />
+      )}
+
+      {node.type === 'alignment_video' && (
+        <AlignmentVideoBlock
+          data={data.props as AlignmentVideoNodeData}
+          onChange={(next) => onUpdate(node.id, { type: 'alignment_video', props: next } as QuestionData)}
         />
       )}
     </div>

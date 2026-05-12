@@ -58,9 +58,10 @@ type UpdateFormInput struct {
 }
 
 type ListFormsParams struct {
-	Status *FormStatus
-	Limit  int
-	Cursor *string
+	OrganizationID uuid.UUID
+	Status         *FormStatus
+	Limit          int
+	Cursor         *string
 }
 
 type ListFormsResult struct {

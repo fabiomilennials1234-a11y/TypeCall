@@ -105,7 +105,21 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
   if (response.status === 204) return undefined as T
 
-  const data = await response.json()
+  const text = await response.text()
+
+  if (!text) {
+    if (!response.ok) {
+      throw new ApiError(response.status, 'EMPTY_RESPONSE', `Request failed (${response.status})`)
+    }
+    return undefined as T
+  }
+
+  let data: { code?: string; error?: string; details?: unknown }
+  try {
+    data = JSON.parse(text)
+  } catch {
+    throw new ApiError(response.status, 'INVALID_JSON', 'Server returned invalid JSON')
+  }
 
   if (!response.ok) {
     throw new ApiError(response.status, data.code ?? 'UNKNOWN', data.error ?? 'Request failed', data.details)

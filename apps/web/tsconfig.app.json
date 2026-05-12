@@ -27,7 +27,9 @@
     /* Path alias */
     "paths": {
       "@/*": ["./src/*"],
-      "@typecall/flow-engine": ["../../packages/flow-engine/src/index.ts"]
+      "@typecall/flow-engine": ["../../packages/flow-engine/src/index.ts"],
+      "@typecall/shared": ["../../packages/shared/src/index.ts"],
+      "@typecall/shared/*": ["../../packages/shared/src/*/index.ts"]
     }
   },
   "include": ["src"]

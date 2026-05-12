@@ -17,6 +17,102 @@ Funcionalidades avancadas que expandem o TypeCall de MVP para plataforma complet
 
 ---
 
+## Iteracao Pos-MVP — Animations + Preview Revamp
+
+**Status**: entregue 2026-05-11 (branch `develop`)
+
+Sistema de movimento world-class na plataforma + revamp do preview do builder. Detalhes em [[Animations]] e [[ADR-007-motion-lib-e-anim-tokens]].
+
+### Capacidades
+
+- **motion lib em apps/web** + CSS-only em apps/embed (preserva budget D027)
+- **Tokens compartilhados**: easing out-expo + 4 durations (tap/micro/route/cinema)
+- **prefers-reduced-motion** honrado em todas camadas
+- **Plataforma**: route transitions, sidebar magic-move, stagger em listas, AnimatedNumber, builder layout anim, panel slide Editor↔Theme, save indicator refinado
+- **Runner**: step transitions vertical direction-based, submit cinematografico (ring sonar + checkmark pathLength + text stagger), button hover/tap
+- **Embed**: keyframes `tc-*` replicam linguagem do web sem JS overhead, loader popup/slider com RAF open anims
+- **DevicePreview**: overlay com 3 viewports (mobile 390x780, tablet 768x1024, desktop 1280x800), sync canvas→preview, Ctrl/Meta+P toggle, Esc fecha, setas navegam steps
+
+### Bundle delta
+
+- Web: +30kb gz (motion runtime) — 230kb gz total
+- Embed responder: +1.2kb gz (67.26kb gz)
+- Loader: +150b (1.41kb gz)
+
+### Decisoes
+
+- Ver D037 em STATE.md
+- Ver [[ADR-007-motion-lib-e-anim-tokens]]
+
+---
+
+## Iteracao Pos-MVP — Form Theming (visual customization)
+
+**Status**: entregue 2026-05-07 (branch `feature/form-theming`)
+
+Forms agora customizaveis visualmente via ThemePanel no builder. 7 controles curados, padrao Stripe Checkout / Tally.
+
+### Capacidades
+
+- **Background**: cor solida, gradiente (2 stops + angulo), imagem (upload ate 5MB)
+- **Cores**: primaria (CTAs), texto, card
+- **Tipografia**: 8 Google Fonts curadas (Inter, Geist, Manrope, Space Grotesk, Playfair Display, Cormorant Garamond, Crimson Pro, JetBrains Mono) com preview real no picker
+- **Forma**: 5 niveis de border radius + alinhamento (esquerda/centro)
+- **Auto-save**: debounce 1.5s, PATCH /forms/:id
+- **Aplicado**: FormRunnerPage (publico) + Embed runner
+
+### Sprints (1-12)
+
+1. `feat(db)`: tabela form_assets + RLS
+2. `feat(api)`: AssetRepository/Service/Handler com mime+size validation, static `/uploads/*`
+3. `feat(api)`: validateThemeJSON com DisallowUnknownFields + enums + regex CSS color
+4. `test(api)`: cobertura asset upload + theme validation
+5. `feat(web)`: lista curada de fontes + Google Fonts link
+6. `feat(web)`: helpers themeToCss + defaultTheme + readTheme + isFormTheme
+7. `feat(web)`: ThemePanel + 6 sub-componentes (Background, Color, Font, Radius, Alignment, AssetUploader)
+8. `feat(web)`: integra ThemePanel em PropertyPanel quando node === null + useThemeAutoSave
+9. `feat(web)`: aplica theme em FormRunnerPage publico
+10. `feat(embed)`: aplica theme + carrega Google Fonts no embed
+11. `test(web)`: 13 tests vitest
+12. `docs(vault)`: D032 + ADR-006
+
+### Decisoes formais
+
+- [[../07 - Decisoes/ADR-006-form-asset-storage-filesystem]] — armazenamento de assets em filesystem (vs S3/bytea)
+- D032 em STATE.md
+
+### Limitacao
+
+`theme.ts` duplicado entre `apps/web/src/features/builder/lib/theme.ts` e `apps/embed/src/theme.ts`. Consolidar em `packages/shared` quando alguma logica adicional comecar a divergir.
+
+---
+
+## Iteracao Pos-MVP — Google OAuth + Google Calendar Sync
+
+**Status**: entregue 2026-05-07 (branch `feature/google-integration`)
+
+Trazido da Fase 3 onde foi adiado por D023. Sprint A-H executadas:
+
+- **Sprint A**: migration 0007 `integration_credentials` (RLS, AES-256-GCM nonce/ciphertext separados), pkg `internal/crypto`, `internal/domain/integration.go`, env vars validadas (`ENCRYPTION_KEY` hex 32 bytes, `GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI`).
+- **Sprint B**: link/unlink de conta Google ao usuario logado. `IntegrationRepository`, `IntegrationService` (state JWT-signed, prompt=consent, /userinfo verified email), `IntegrationHandler` (`/integrations/google/{authorize,callback,disconnect,status}`), `/settings/integrations` UI.
+- **Sprint C**: Sign in with Google. Auto-cria User+Org se email novo (slug = dominio do email com fallback uuid). `GoogleSigninFlow`, `/auth/google/{authorize,callback}`. Botao "Continuar com Google" em `/login` e `/register`.
+- **Sprint D**: client `internal/integration/gcal` sobre `google.golang.org/api/calendar/v3`. Refresh transparente (re-encripta access token), circuit breaker per-user, FreeBusy integrado em `availability_service.GetAvailableSlots` (busy slots merged em existingBookings). Soft-fail em outage.
+- **Sprint E**: `bookingService.Create` cria evento GCal com Meet (conferenceData hangoutsMeet, attendees host+respondente, reminder 10min). Persiste `google_event_id` + `meeting_url`. `Cancel` deleta evento. Falha = soft-fail (booking persiste sem meet_url).
+- **Sprint F**: stub `/webhooks/gcal` (parse headers, log). Setup/renew/cache invalidation deferidos pra Redis caching futura.
+- **Sprint G**: botao "Acessar" oculto sem `meeting_url`, abre Meet em nova aba.
+- **Sprint H**: ADR-005 + decisao D031 em STATE.md.
+
+Referencias:
+- [[../09 - Referencias/Integracoes/Google Calendar]] — brief tecnico
+- [[../07 - Decisoes/ADR-005-google-oauth-gcal-sync]] — decisao formal
+
+Pendente em sprint futura:
+- Redis cache de slots (avail:{event_type_id}:{user_id}:{date_range}, TTL 15min).
+- Watch channel setup completo + cron renovacao 24h antes dos 7d.
+- Reschedule via UI.
+
+---
+
 ## v1.1 — Polish + Convert
 
 Funcionalidades que refinam a experiencia e aumentam conversao. Entregues incrementalmente apos o MVP.

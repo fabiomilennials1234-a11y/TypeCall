@@ -12,11 +12,18 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/typecall/api/internal/domain"
 	"github.com/typecall/api/internal/repository"
 )
+
+// SellerBootstrapper provisiona seller baseline para owners recem-criados.
+// Interface minima evita ciclo de import com pacote sellers.
+type SellerBootstrapper interface {
+	CreateDefaultForOwner(ctx context.Context, userID, orgID uuid.UUID, name string) (*domain.Seller, error)
+}
 
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
@@ -43,11 +50,12 @@ type AuthService interface {
 }
 
 type authService struct {
-	orgRepo     repository.OrganizationRepository
-	userRepo    repository.UserRepository
-	tokenRepo   repository.RefreshTokenRepository
-	jwtSecret   []byte
-	csrfSecret  []byte
+	orgRepo    repository.OrganizationRepository
+	userRepo   repository.UserRepository
+	tokenRepo  repository.RefreshTokenRepository
+	sellers    SellerBootstrapper
+	jwtSecret  []byte
+	csrfSecret []byte
 }
 
 func NewAuthService(
@@ -63,6 +71,28 @@ func NewAuthService(
 		tokenRepo:  tokenRepo,
 		jwtSecret:  []byte(jwtSecret),
 		csrfSecret: []byte(csrfSecret),
+	}
+}
+
+// WireAuthSellerBootstrapper injeta o provisionador de seller baseline.
+// Setter pos-construcao evita dependencia circular no DI principal.
+func WireAuthSellerBootstrapper(svc AuthService, sb SellerBootstrapper) {
+	if as, ok := svc.(*authService); ok {
+		as.sellers = sb
+	}
+}
+
+// bootstrapSellerForOwner cria seller baseline soft-fail. Erro nao quebra register.
+func (s *authService) bootstrapSellerForOwner(ctx context.Context, userID, orgID uuid.UUID, name string) {
+	if s.sellers == nil {
+		return
+	}
+	if _, err := s.sellers.CreateDefaultForOwner(ctx, userID, orgID, name); err != nil {
+		log.Warn().
+			Err(err).
+			Str("user_id", userID.String()).
+			Str("org_id", orgID.String()).
+			Msg("auth: failed to create default seller for owner")
 	}
 }
 
@@ -113,6 +143,8 @@ func (s *authService) Register(ctx context.Context, input domain.RegisterInput) 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, nil, fmt.Errorf("AuthService.Register: create user: %w", err)
 	}
+
+	s.bootstrapSellerForOwner(ctx, user.ID, org.ID, user.Name)
 
 	tokens, err := s.generateTokens(ctx, user, org.ID)
 	if err != nil {

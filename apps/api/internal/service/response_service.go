@@ -28,12 +28,14 @@ type ResponseService interface {
 type responseService struct {
 	responseRepo   repository.ResponseRepository
 	publicFormRepo repository.PublicFormRepository
+	bookingRepo    repository.BookingRepository
 }
 
-func NewResponseService(responseRepo repository.ResponseRepository, publicFormRepo repository.PublicFormRepository) ResponseService {
+func NewResponseService(responseRepo repository.ResponseRepository, publicFormRepo repository.PublicFormRepository, bookingRepo repository.BookingRepository) ResponseService {
 	return &responseService{
 		responseRepo:   responseRepo,
 		publicFormRepo: publicFormRepo,
+		bookingRepo:    bookingRepo,
 	}
 }
 
@@ -100,6 +102,24 @@ func (s *responseService) Submit(ctx context.Context, slug string, input domain.
 
 	if err := s.responseRepo.CreateAnswers(ctx, answers); err != nil {
 		return nil, fmt.Errorf("ResponseService.Submit: create answers: %w", err)
+	}
+
+	// Link bookings created during runner (schedule step) back to this response.
+	// Schedule step stores booking_id as string answer value. Best-effort: failures
+	// don't block submit.
+	for _, a := range answers {
+		var v string
+		if err := json.Unmarshal(a.Value, &v); err != nil {
+			continue
+		}
+		bookingID, err := uuid.Parse(v)
+		if err != nil {
+			continue
+		}
+		if linkErr := s.bookingRepo.LinkResponse(ctx, bookingID, form.OrganizationID, responseID); linkErr != nil {
+			// log only — non-fatal
+			_ = linkErr
+		}
 	}
 
 	resp.Answers = answers
