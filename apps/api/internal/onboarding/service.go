@@ -201,7 +201,7 @@ func (s *service_) Complete(ctx context.Context, userID, orgID uuid.UUID, userNa
 	}
 
 	// Persistir flow_definition como draft do form recem-criado.
-	if err := s.formSvc.SaveDraft(ctx, form.ID, input.Form.FlowDefinition); err != nil {
+	if err := s.formSvc.SaveDraft(ctx, orgID, form.ID, input.Form.FlowDefinition); err != nil {
 		return nil, fmt.Errorf("onboarding.Service.Complete: form draft: %w", err)
 	}
 

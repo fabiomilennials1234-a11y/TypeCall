@@ -37,12 +37,12 @@ var (
 
 type FormService interface {
 	Create(ctx context.Context, orgID uuid.UUID, input domain.CreateFormInput) (*domain.Form, error)
-	List(ctx context.Context, params domain.ListFormsParams) (*domain.ListFormsResult, error)
-	Get(ctx context.Context, id uuid.UUID) (*domain.Form, error)
-	Update(ctx context.Context, id uuid.UUID, input domain.UpdateFormInput) (*domain.Form, error)
-	Delete(ctx context.Context, id uuid.UUID) error
-	SaveDraft(ctx context.Context, id uuid.UUID, draft json.RawMessage) error
-	Publish(ctx context.Context, id uuid.UUID, publishedBy uuid.UUID) (*domain.FormVersion, error)
+	List(ctx context.Context, orgID uuid.UUID, params domain.ListFormsParams) (*domain.ListFormsResult, error)
+	Get(ctx context.Context, orgID, id uuid.UUID) (*domain.Form, error)
+	Update(ctx context.Context, orgID, id uuid.UUID, input domain.UpdateFormInput) (*domain.Form, error)
+	Delete(ctx context.Context, orgID, id uuid.UUID) error
+	SaveDraft(ctx context.Context, orgID, id uuid.UUID, draft json.RawMessage) error
+	Publish(ctx context.Context, orgID, id uuid.UUID, publishedBy uuid.UUID) (*domain.FormVersion, error)
 }
 
 type formService struct {
@@ -96,7 +96,11 @@ func (s *formService) Create(ctx context.Context, orgID uuid.UUID, input domain.
 	return form, nil
 }
 
-func (s *formService) List(ctx context.Context, params domain.ListFormsParams) (*domain.ListFormsResult, error) {
+func (s *formService) List(ctx context.Context, orgID uuid.UUID, params domain.ListFormsParams) (*domain.ListFormsResult, error) {
+	if orgID == uuid.Nil {
+		return nil, fmt.Errorf("FormService.List: missing org")
+	}
+	params.OrganizationID = orgID
 	result, err := s.formRepo.List(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("FormService.List: %w", err)
@@ -104,8 +108,11 @@ func (s *formService) List(ctx context.Context, params domain.ListFormsParams) (
 	return result, nil
 }
 
-func (s *formService) Get(ctx context.Context, id uuid.UUID) (*domain.Form, error) {
-	form, err := s.formRepo.GetByID(ctx, id)
+func (s *formService) Get(ctx context.Context, orgID, id uuid.UUID) (*domain.Form, error) {
+	if orgID == uuid.Nil {
+		return nil, fmt.Errorf("FormService.Get: missing org")
+	}
+	form, err := s.formRepo.GetByIDInOrg(ctx, id, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("FormService.Get: %w", err)
 	}
@@ -115,8 +122,11 @@ func (s *formService) Get(ctx context.Context, id uuid.UUID) (*domain.Form, erro
 	return form, nil
 }
 
-func (s *formService) Update(ctx context.Context, id uuid.UUID, input domain.UpdateFormInput) (*domain.Form, error) {
-	form, err := s.formRepo.GetByID(ctx, id)
+func (s *formService) Update(ctx context.Context, orgID, id uuid.UUID, input domain.UpdateFormInput) (*domain.Form, error) {
+	if orgID == uuid.Nil {
+		return nil, fmt.Errorf("FormService.Update: missing org")
+	}
+	form, err := s.formRepo.GetByIDInOrg(ctx, id, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("FormService.Update: %w", err)
 	}
@@ -157,22 +167,45 @@ func (s *formService) Update(ctx context.Context, id uuid.UUID, input domain.Upd
 	return form, nil
 }
 
-func (s *formService) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *formService) Delete(ctx context.Context, orgID, id uuid.UUID) error {
+	if orgID == uuid.Nil {
+		return fmt.Errorf("FormService.Delete: missing org")
+	}
+	form, err := s.formRepo.GetByIDInOrg(ctx, id, orgID)
+	if err != nil {
+		return fmt.Errorf("FormService.Delete: %w", err)
+	}
+	if form == nil {
+		return ErrFormNotFound
+	}
 	if err := s.formRepo.SoftDelete(ctx, id); err != nil {
 		return fmt.Errorf("FormService.Delete: %w", err)
 	}
 	return nil
 }
 
-func (s *formService) SaveDraft(ctx context.Context, id uuid.UUID, draft json.RawMessage) error {
+func (s *formService) SaveDraft(ctx context.Context, orgID, id uuid.UUID, draft json.RawMessage) error {
+	if orgID == uuid.Nil {
+		return fmt.Errorf("FormService.SaveDraft: missing org")
+	}
+	form, err := s.formRepo.GetByIDInOrg(ctx, id, orgID)
+	if err != nil {
+		return fmt.Errorf("FormService.SaveDraft: %w", err)
+	}
+	if form == nil {
+		return ErrFormNotFound
+	}
 	if err := s.formRepo.UpdateDraft(ctx, id, draft); err != nil {
 		return fmt.Errorf("FormService.SaveDraft: %w", err)
 	}
 	return nil
 }
 
-func (s *formService) Publish(ctx context.Context, id uuid.UUID, publishedBy uuid.UUID) (*domain.FormVersion, error) {
-	form, err := s.formRepo.GetByID(ctx, id)
+func (s *formService) Publish(ctx context.Context, orgID, id uuid.UUID, publishedBy uuid.UUID) (*domain.FormVersion, error) {
+	if orgID == uuid.Nil {
+		return nil, fmt.Errorf("FormService.Publish: missing org")
+	}
+	form, err := s.formRepo.GetByIDInOrg(ctx, id, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("FormService.Publish: %w", err)
 	}

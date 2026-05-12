@@ -20,6 +20,7 @@ import (
 type FormRepository interface {
 	Create(ctx context.Context, form *domain.Form) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Form, error)
+	GetByIDInOrg(ctx context.Context, id, orgID uuid.UUID) (*domain.Form, error)
 	List(ctx context.Context, params domain.ListFormsParams) (*domain.ListFormsResult, error)
 	Update(ctx context.Context, form *domain.Form) error
 	UpdateDraft(ctx context.Context, id uuid.UUID, draft json.RawMessage) error
@@ -60,15 +61,28 @@ func (r *formRepository) Create(ctx context.Context, form *domain.Form) error {
 }
 
 func (r *formRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Form, error) {
+	return r.getByIDFiltered(ctx, id, uuid.Nil)
+}
+
+func (r *formRepository) GetByIDInOrg(ctx context.Context, id, orgID uuid.UUID) (*domain.Form, error) {
+	return r.getByIDFiltered(ctx, id, orgID)
+}
+
+func (r *formRepository) getByIDFiltered(ctx context.Context, id, orgID uuid.UUID) (*domain.Form, error) {
 	conn := db.Conn(ctx, r.pool)
 	query := `
 		SELECT id, organization_id, title, slug, description, status, version,
 			draft_definition, theme, settings, published_at, created_at, updated_at
 		FROM forms
 		WHERE id = $1 AND deleted_at IS NULL`
+	args := []any{id}
+	if orgID != uuid.Nil {
+		query += " AND organization_id = $2"
+		args = append(args, orgID)
+	}
 
 	form := &domain.Form{}
-	err := conn.QueryRow(ctx, query, id).Scan(
+	err := conn.QueryRow(ctx, query, args...).Scan(
 		&form.ID, &form.OrganizationID, &form.Title, &form.Slug, &form.Description,
 		&form.Status, &form.Version, &form.DraftDefinition, &form.Theme, &form.Settings,
 		&form.PublishedAt, &form.CreatedAt, &form.UpdatedAt,
@@ -88,6 +102,12 @@ func (r *formRepository) List(ctx context.Context, params domain.ListFormsParams
 	conditions := []string{"deleted_at IS NULL"}
 	args := []any{}
 	argIdx := 1
+
+	if params.OrganizationID != uuid.Nil {
+		conditions = append(conditions, fmt.Sprintf("organization_id = $%d", argIdx))
+		args = append(args, params.OrganizationID)
+		argIdx++
+	}
 
 	if params.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
