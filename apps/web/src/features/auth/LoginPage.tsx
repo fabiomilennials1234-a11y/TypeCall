@@ -3,14 +3,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLoginMutation } from '@/hooks/useAuth'
 import { GoogleSigninButton } from './components/GoogleSigninButton'
+import { AuthShell } from './components/AuthShell'
 
 const loginSchema = z.object({
   email: z.string().email('Email invalido'),
@@ -35,7 +34,11 @@ export function LoginPage() {
     }
   }, [searchParams, setSearchParams])
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
 
@@ -46,71 +49,87 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <Zap className="h-6 w-6 text-primary-foreground" />
+    <AuthShell
+      step="01 · entrar"
+      title="Bem-vindo de volta."
+      altText="Ainda nao tem conta?"
+      altCta={{ label: 'Criar conta', to: '/register' }}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {oauthError && (
+          <div className="rounded-sm border border-bad/30 bg-bad/5 p-3 text-xs text-bad">
+            {oauthError}
           </div>
-          <CardTitle className="text-2xl">Entrar no TypeCall</CardTitle>
-          <CardDescription>Entre com seu email e senha</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            {oauthError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {oauthError}
-              </div>
-            )}
-            {loginMutation.error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {loginMutation.error.message}
-              </div>
-            )}
-            <GoogleSigninButton disabled={loginMutation.isPending} />
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="seu@email.com" {...register('email')} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
-              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-            </div>
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-              {loginMutation.isPending ? 'Entrando...' : 'Entrar'}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              Nao tem conta?{' '}
-              <Link to="/register" className="text-primary hover:underline">
-                Criar conta
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+        )}
+        {loginMutation.error && (
+          <div className="rounded-sm border border-bad/30 bg-bad/5 p-3 text-xs text-bad">
+            {loginMutation.error.message}
+          </div>
+        )}
+
+        <GoogleSigninButton disabled={loginMutation.isPending} />
+
+        <div className="flex items-center gap-3 py-1">
+          <span className="h-px flex-1 bg-line" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-low">
+            ou
+          </span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mid">
+            email do trabalho
+          </Label>
+          <Input id="email" type="email" placeholder="voce@empresa.com" {...register('email')} />
+          {errors.email && <p className="text-[11px] text-bad">{errors.email.message}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mid">
+            senha
+          </Label>
+          <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
+          {errors.password && <p className="text-[11px] text-bad">{errors.password.message}</p>}
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-ink-mid">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded-sm border-line accent-ink"
+            />
+            lembrar de mim
+          </label>
+          <Link
+            to="/forgot"
+            className="font-mono text-[10px] uppercase tracking-wider text-ink underline underline-offset-2 hover:text-ink-soft"
+          >
+            esqueci a senha
+          </Link>
+        </div>
+
+        <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+          {loginMutation.isPending ? 'Entrando...' : 'Entrar →'}
+        </Button>
+      </form>
+    </AuthShell>
   )
 }
 
 function googleErrorMessage(code: string): string {
   switch (code) {
-    case 'oauth_denied': return 'Autorizacao Google cancelada.'
-    case 'invalid_state': return 'Sessao OAuth expirou. Tente novamente.'
-    case 'missing_params': return 'Resposta do Google incompleta.'
-    case 'account_disabled': return 'Conta desativada. Contate o admin.'
-    case 'callback_failed': return 'Falha ao concluir login com Google.'
-    default: return `Erro ao entrar com Google (${code}).`
+    case 'oauth_denied':
+      return 'Autorizacao Google cancelada.'
+    case 'invalid_state':
+      return 'Sessao OAuth expirou. Tente novamente.'
+    case 'missing_params':
+      return 'Resposta do Google incompleta.'
+    case 'account_disabled':
+      return 'Conta desativada. Contate o admin.'
+    case 'callback_failed':
+      return 'Falha ao concluir login com Google.'
+    default:
+      return `Erro ao entrar com Google (${code}).`
   }
 }

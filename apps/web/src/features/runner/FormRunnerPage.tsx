@@ -235,7 +235,10 @@ export function FormRunnerPage() {
 
   return (
     <div className="form-runner flex h-screen flex-col" style={themed.style}>
-      <div className="h-1 w-full bg-black/20">
+      <div
+        className="h-1 w-full"
+        style={{ background: 'color-mix(in oklab, var(--form-text) 14%, transparent)' }}
+      >
         <motion.div
           className="h-1"
           style={{ background: 'var(--form-primary)' }}
@@ -280,7 +283,10 @@ export function FormRunnerPage() {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
+      <div
+        className="flex items-center justify-between border-t px-6 py-4"
+        style={{ borderColor: 'color-mix(in oklab, var(--form-text) 14%, transparent)' }}
+      >
         <motion.button
           onClick={previous}
           disabled={history.length < 2}
@@ -299,8 +305,12 @@ export function FormRunnerPage() {
             onClick={next}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.96 }}
-            className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-            style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+            className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+            style={{
+              background: 'var(--form-primary)',
+              color: 'var(--form-primary-fg, #ffffff)',
+              borderRadius: 'var(--form-radius)',
+            }}
           >
             {currentNode.type === 'ending' ? 'Enviar' : 'Continuar'}
             <ChevronDown className="h-4 w-4" />

@@ -4,18 +4,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Booking } from '@/api/endpoints/bookings'
 import * as bookingsApi from '@/api/endpoints/bookings'
 import { cn } from '@/lib/cn'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 import { BookingDetailDialog } from './components/BookingDetailDialog'
 import { BookingsCalendarView } from './components/BookingsCalendarView'
 import { BookingsListView } from './components/BookingsListView'
+import { BookingsWeekView } from './components/BookingsWeekView'
 import { dayKey, endOfMonth, startOfMonth } from './lib/bookings'
+import { endOfWeek, startOfWeek } from './lib/week'
 
-type View = 'list' | 'calendar'
+type View = 'list' | 'week' | 'calendar'
 
 export function BookingsPage() {
   const queryClient = useQueryClient()
-  const [view, setView] = useState<View>('list')
+  const [view, setView] = useState<View>('week')
   const [currentMonth, setCurrentMonth] = useState<Date>(() => startOfMonth(new Date()))
+  const [currentWeek, setCurrentWeek] = useState<Date>(() => startOfWeek(new Date()))
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
 
   const listQuery = useQuery({
@@ -32,8 +36,25 @@ export function BookingsPage() {
 
   const calendarQuery = useQuery({
     queryKey: ['bookings', 'calendar', dayKey(startOfMonth(currentMonth))],
-    queryFn: () => bookingsApi.listBookings({ limit: 200, from: calendarRange.from, to: calendarRange.to }),
+    queryFn: () =>
+      bookingsApi.listBookings({ limit: 200, from: calendarRange.from, to: calendarRange.to }),
     enabled: view === 'calendar',
+  })
+
+  const weekRange = useMemo(() => {
+    const start = startOfWeek(currentWeek)
+    return {
+      from: start.toISOString(),
+      to: endOfWeek(currentWeek).toISOString(),
+      key: dayKey(start),
+    }
+  }, [currentWeek])
+
+  const weekQuery = useQuery({
+    queryKey: ['bookings', 'week', weekRange.key],
+    queryFn: () =>
+      bookingsApi.listBookings({ limit: 200, from: weekRange.from, to: weekRange.to }),
+    enabled: view === 'week',
   })
 
   const cancelMutation = useMutation({
@@ -41,44 +62,56 @@ export function BookingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['bookings', 'calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['bookings', 'week'] })
       setSelectedBooking(null)
     },
   })
 
-  const activeData = view === 'list' ? listQuery.data : calendarQuery.data
+  const activeData =
+    view === 'list' ? listQuery.data : view === 'calendar' ? calendarQuery.data : weekQuery.data
   const totalLabel = activeData
     ? `${activeData.bookings.length} reuniao${activeData.bookings.length !== 1 ? 'es' : ''}`
     : 'Carregando...'
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reunioes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{totalLabel}</p>
-        </div>
-        <ViewToggle value={view} onChange={setView} />
-      </div>
+    <div>
+      <PageHeader
+        title="Reunioes"
+        eyebrow={totalLabel}
+        subtitle="Visualize, confirme e remarque cada reuniao do funil."
+        right={<ViewToggle value={view} onChange={setView} />}
+      />
 
-      {view === 'list' ? (
-        <BookingsListView
-          bookings={listQuery.data?.bookings}
-          isLoading={listQuery.isLoading}
-          isError={listQuery.isError}
-          isCancelling={cancelMutation.isPending}
-          onCancel={(id) => cancelMutation.mutate(id)}
-          onSelect={setSelectedBooking}
-        />
-      ) : (
-        <BookingsCalendarView
-          bookings={calendarQuery.data?.bookings}
-          isLoading={calendarQuery.isLoading}
-          isError={calendarQuery.isError}
-          currentMonth={currentMonth}
-          onChangeMonth={setCurrentMonth}
-          onSelectBooking={setSelectedBooking}
-        />
-      )}
+      <div className="px-6 py-6 lg:px-10 lg:py-8">
+        {view === 'list' ? (
+          <BookingsListView
+            bookings={listQuery.data?.bookings}
+            isLoading={listQuery.isLoading}
+            isError={listQuery.isError}
+            isCancelling={cancelMutation.isPending}
+            onCancel={(id) => cancelMutation.mutate(id)}
+            onSelect={setSelectedBooking}
+          />
+        ) : view === 'week' ? (
+          <BookingsWeekView
+            bookings={weekQuery.data?.bookings}
+            isLoading={weekQuery.isLoading}
+            isError={weekQuery.isError}
+            currentWeek={currentWeek}
+            onChangeWeek={setCurrentWeek}
+            onSelectBooking={setSelectedBooking}
+          />
+        ) : (
+          <BookingsCalendarView
+            bookings={calendarQuery.data?.bookings}
+            isLoading={calendarQuery.isLoading}
+            isError={calendarQuery.isError}
+            currentMonth={currentMonth}
+            onChangeMonth={setCurrentMonth}
+            onSelectBooking={setSelectedBooking}
+          />
+        )}
+      </div>
 
       <BookingDetailDialog
         booking={selectedBooking}
@@ -93,17 +126,18 @@ export function BookingsPage() {
 function ViewToggle({ value, onChange }: { value: View; onChange: (v: View) => void }) {
   const options: Array<{ key: View; label: string }> = [
     { key: 'list', label: 'Lista' },
-    { key: 'calendar', label: 'Agenda' },
+    { key: 'week', label: 'Semana' },
+    { key: 'calendar', label: 'Mes' },
   ]
   return (
-    <div className="flex rounded-lg border border-border">
+    <div className="flex overflow-hidden rounded-sm border border-line">
       {options.map((opt) => (
         <button
           key={opt.key}
           onClick={() => onChange(opt.key)}
           className={cn(
-            'px-3 py-1.5 text-xs font-medium transition-colors',
-            value === opt.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+            'px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors',
+            value === opt.key ? 'bg-ink text-paper' : 'text-ink-mid hover:bg-paper-2 hover:text-ink',
           )}
         >
           {opt.label}
