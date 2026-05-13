@@ -262,6 +262,36 @@ Tela de Reunioes ganha duas visoes alternaveis:
 
 Duas queries TanStack distintas: `['bookings','list']` (limit 100) e `['bookings','calendar', monthKey]` (from/to do mes, limit 200). cancelMutation invalida ambas. Helpers de data via Date API nativa (sem date-fns) em `features/scheduling/lib/bookings.ts` com 22 testes vitest.
 
+### D038: Redesign Editorial Cream + Ink — sistema visual reescrito (2026-05-13)
+
+Pasta `typecall/` recebida com wireframes sketchy low-fi cobrindo 7 areas × 2 variantes (auth, dashboard, builder, calendar, public, settings, landing). 10 `.tsx` snapshots dentro de `typecall/apps/web/src/` eram identicos ao current (diff so em CRLF vs LF), descartados. Wireframes arquivados em `TypeCall-dir/04 - Design/Wireframes-Redesign-2026-05/`. Lixo (`v2/`, screens-courses/feed/leaderboard, HTMLs canvas, `tweaks-panel.jsx`, `design-canvas.jsx`, `typecall.zip`, `apps/web/.vite/`) deletado.
+
+Variante A do wireframe escolhida pra todas as areas. Paleta D010 (dark purple) substituida por sistema editorial cream + ink — wireframe explicitamente light-first com `--paper` (cream) + `--ink` (near-black) + acento dourado `--gold`. Mudanca cobrira sistema todo via tokens.
+
+**Tokens visuais (apps/web/src/styles/globals.css)**:
+- HSL custom: `--paper`/`--paper-2`/`--paper-3` (cream tints), `--ink`/`--ink-mid`/`--ink-soft`/`--ink-low` (text hierarchy), `--line`/`--line-soft` (hairlines), `--gold`/`--gold-bg`/`--gold-dk`, `--good`/`--bad`.
+- shadcn surfaces mapeadas: `--background → --paper`, `--foreground → --ink`, `--border → --line`, `--card → --paper`, `--primary → --ink` etc. Componentes shadcn existentes herdam sem refactor.
+- Fontes: Source Serif 4 (display + body emfasis), Geist sans (UI), Geist Mono (labels/metrics). Carregadas via Google Fonts em index.html. Utility `.font-display` + `.font-mono-tc` + `.tc-underline` (gold accent underline).
+- `.dark` opt-in: paper/ink invertidos preservando sistema editorial.
+- `theme-color` meta atualizada pra cream `#f5f1ea`.
+
+**Componentes redesenhados**:
+- `Sidebar.tsx` — paper-2 bg, logo box editorial, Workspace label mono-uppercase, active pill via motion `layoutId`, Org card no footer.
+- `PageHeader.tsx` — novo componente reutilizavel: crumbs/eyebrow + display serif title + serif subtitle + right slot.
+- `AuthShell.tsx` — split editorial 46%/54%: painel esquerdo cream-2 com pitch serif + testimonial card / direito form simples com mono labels.
+- `LoginPage.tsx` + `RegisterPage.tsx` — AuthShell + GoogleSigninButton + mono labels + Source Serif 4 paragrafos.
+- `SalesDashboard.tsx` — H1 display serif `text-5xl`, sub-headline serif, tokens cream-paper. Hero strip 3 KPIs grandes (AnimatedNumber), grid 1.55/1 com funil drop-off animado, vendedores table, TagDonut SVG, Proximas reunioes do dia (`bookings.list` from/to today), Insight Gold pending card.
+- `IntegrationsPage.tsx` — hub editorial: PageHeader + filter chips (Todas/Conectadas/Calendario/CRM/Comunicacao/Marketing) + grid 3 col com cards de 12 integracoes. Google Calendar real funcional. Outras com status `available`/`beta`/`soon` (em breve). StatusPill colorido por estado.
+- `SettingsPage.tsx` — hub com aside-nav vertical (Geral / Integracoes / Meta Pixel) + content area editorial.
+- `BookingsPage.tsx` + `BookingsWeekView.tsx` — adicionado view "Semana" no toggle (Lista | Semana | Mes, default `week`). Grid 7×11h, chips coloridos por leadTag (diamond=ink/paper, gold=gold-bg, silver=paper-2, bronze=paper-3, disqualified=bad/5), today highlighted gold-bg/30. Click em chip abre `BookingDetailDialog` existente. Nova query `['bookings', 'week', weekKey]` + helpers `lib/week.ts`.
+- `LandingPage.tsx` — nova rota publica `/marketing`: TopNav + Hero serif `text-[88px]` + HeroPreview mockup KPIs + NumberBand 4 stats + 3 Pillars (Builder/Schedule/Analytics) + Quote + CTA black panel com gold button + Footer 3 colunas.
+
+**FormRunnerPage** mantida — ja consome theme via `--form-primary` por form (D032), edicao editorial via builder ThemePanel.
+
+**Builder** mantido — 3-pane (palette + canvas linear + properties) ja matching wireframe Classic. Tokens herdam via shadcn mapping.
+
+Build production verde: 829kb JS / 70kb CSS / 11.5kb CSS gz. Typecheck limpo. Apps/web/dist regenerado.
+
 ---
 
 ## Blockers

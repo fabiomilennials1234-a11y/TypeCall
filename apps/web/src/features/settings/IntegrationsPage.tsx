@@ -1,16 +1,51 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, Link2, Link2Off, Loader2 } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Calendar,
+  Mail,
+  MessageCircle,
+  Megaphone,
+  CreditCard,
+  Database,
+  X,
+} from 'lucide-react'
 
 import * as integrationsApi from '@/api/endpoints/integrations'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
+import { PageHeader } from '@/components/layout/PageHeader'
+
+type Status = 'connected' | 'available' | 'beta' | 'soon'
+type Category = 'Calendario' | 'CRM' | 'Comunicacao' | 'Marketing' | 'Pagamento'
+
+interface IntegrationDef {
+  key: string
+  name: string
+  category: Category
+  status: Status
+  icon: typeof Calendar
+  description: string
+  detail?: string
+}
+
+const FILTERS = [
+  { key: 'all', label: 'Todas' },
+  { key: 'connected', label: 'Conectadas' },
+  { key: 'Calendario', label: 'Calendario' },
+  { key: 'CRM', label: 'CRM' },
+  { key: 'Comunicacao', label: 'Comunicacao' },
+  { key: 'Marketing', label: 'Marketing' },
+] as const
 
 export function IntegrationsPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const [banner, setBanner] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['key']>('all')
 
   useEffect(() => {
     const connected = searchParams.get('connected')
@@ -49,160 +84,302 @@ export function IntegrationsPage() {
     },
   })
 
-  const status = statusQuery.data
-  const isConnected = status?.connected === true
+  const isGoogleConnected = statusQuery.data?.connected === true
+  const googleEmail = statusQuery.data?.googleAccountEmail
+
+  const integrations = useMemo<IntegrationDef[]>(
+    () => [
+      {
+        key: 'google-calendar',
+        name: 'Google Calendar',
+        category: 'Calendario',
+        status: isGoogleConnected ? 'connected' : 'available',
+        icon: Calendar,
+        description: 'Sincronizar agenda + Google Meet automatico em cada reuniao.',
+        detail: isGoogleConnected ? googleEmail ?? 'conectado' : undefined,
+      },
+      {
+        key: 'outlook',
+        name: 'Microsoft Outlook',
+        category: 'Calendario',
+        status: 'soon',
+        icon: Calendar,
+        description: 'Sincronizar Outlook + Microsoft Teams meetings.',
+      },
+      {
+        key: 'icloud',
+        name: 'Apple iCloud',
+        category: 'Calendario',
+        status: 'beta',
+        icon: Calendar,
+        description: 'CalDAV bidirecional com iCloud.',
+      },
+      {
+        key: 'salesforce',
+        name: 'Salesforce',
+        category: 'CRM',
+        status: 'soon',
+        icon: Database,
+        description: 'Push de leads e bookings pra Salesforce Lead/Opportunity.',
+      },
+      {
+        key: 'hubspot',
+        name: 'HubSpot',
+        category: 'CRM',
+        status: 'soon',
+        icon: Database,
+        description: 'Sync de contatos, deals e activity timeline.',
+      },
+      {
+        key: 'pipedrive',
+        name: 'Pipedrive',
+        category: 'CRM',
+        status: 'soon',
+        icon: Database,
+        description: 'Webhook nativo pra Deal stage.',
+      },
+      {
+        key: 'slack',
+        name: 'Slack',
+        category: 'Comunicacao',
+        status: 'soon',
+        icon: MessageCircle,
+        description: 'Notificacoes em canais por reuniao Diamond/Gold.',
+      },
+      {
+        key: 'whatsapp',
+        name: 'WhatsApp Business',
+        category: 'Comunicacao',
+        status: 'beta',
+        icon: MessageCircle,
+        description: 'Confirmacoes e lembretes via WhatsApp.',
+      },
+      {
+        key: 'resend',
+        name: 'Resend',
+        category: 'Comunicacao',
+        status: 'soon',
+        icon: Mail,
+        description: 'Email transacional white-labeled.',
+      },
+      {
+        key: 'meta-pixel',
+        name: 'Meta / Facebook Pixel',
+        category: 'Marketing',
+        status: 'available',
+        icon: Megaphone,
+        description: 'Eventos Lead e Schedule no Pixel da org.',
+        detail: 'configure em Onboarding',
+      },
+      {
+        key: 'google-ads',
+        name: 'Google Ads',
+        category: 'Marketing',
+        status: 'soon',
+        icon: Megaphone,
+        description: 'Offline conversions enviadas direto pro Ads.',
+      },
+      {
+        key: 'asaas',
+        name: 'Asaas',
+        category: 'Pagamento',
+        status: 'soon',
+        icon: CreditCard,
+        description: 'Cobranca automatica pos-reuniao high-ticket.',
+      },
+    ],
+    [isGoogleConnected, googleEmail],
+  )
+
+  const filtered = integrations.filter((it) => {
+    if (filter === 'all') return true
+    if (filter === 'connected') return it.status === 'connected'
+    return it.category === filter
+  })
+
+  const connectedCount = integrations.filter((it) => it.status === 'connected').length
+
+  function handleConnect(key: string) {
+    if (key === 'google-calendar') {
+      authorizeMutation.mutate()
+    }
+  }
+
+  function handleDisconnect(key: string) {
+    if (key === 'google-calendar') {
+      if (confirm('Desconectar conta Google? Eventos futuros nao serao mais sincronizados.')) {
+        disconnectMutation.mutate()
+      }
+    }
+  }
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Integracoes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Conecte servicos externos para automatizar seu workflow
+    <div>
+      <PageHeader
+        crumbs={['Configuracoes', 'Integracoes']}
+        title="Integracoes"
+        subtitle="Conecte TypeCall ao stack que voce ja usa. Toda integracao e configurada uma vez e funciona para todos os funis."
+      />
+
+      <div className="px-6 py-8 lg:px-10">
+        {banner && (
+          <div
+            className={cn(
+              'mb-6 flex items-start gap-3 rounded-sm border px-4 py-3 text-sm',
+              banner.kind === 'success'
+                ? 'border-good/30 bg-good/5 text-good'
+                : 'border-bad/30 bg-bad/5 text-bad',
+            )}
+          >
+            {banner.kind === 'success' ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            )}
+            <span className="flex-1">{banner.text}</span>
+            <button
+              onClick={() => setBanner(null)}
+              className="text-ink-mid transition-colors hover:text-ink"
+              aria-label="Fechar"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className="mb-6 flex flex-wrap items-center gap-1.5">
+          {FILTERS.map((f) => {
+            const active = filter === f.key
+            const count = f.key === 'connected' ? connectedCount : null
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] transition-colors',
+                  active
+                    ? 'border-ink bg-ink text-paper'
+                    : 'border-line bg-paper text-ink hover:bg-paper-2',
+                )}
+              >
+                {f.label}
+                {count !== null && count > 0 && (
+                  <span className={cn('font-mono text-[10px]', active ? 'text-paper-3' : 'text-ink-mid')}>
+                    · {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((it) => (
+            <IntegrationCard
+              key={it.key}
+              def={it}
+              busy={
+                (it.key === 'google-calendar' &&
+                  (authorizeMutation.isPending || disconnectMutation.isPending)) ||
+                (it.key === 'google-calendar' && statusQuery.isLoading)
+              }
+              onConnect={() => handleConnect(it.key)}
+              onDisconnect={() => handleDisconnect(it.key)}
+            />
+          ))}
+        </div>
+
+        {filtered.length === 0 && (
+          <div className="flex h-32 items-center justify-center rounded-sm border border-dashed border-line text-xs text-ink-mid">
+            Nenhuma integracao nesse filtro.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function IntegrationCard({
+  def,
+  busy,
+  onConnect,
+  onDisconnect,
+}: {
+  def: IntegrationDef
+  busy: boolean
+  onConnect: () => void
+  onDisconnect: () => void
+}) {
+  const Icon = def.icon
+  return (
+    <article className="flex flex-col rounded-sm border border-line bg-paper p-4 transition-colors hover:border-ink/60">
+      <header className="flex items-start justify-between">
+        <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-line bg-paper-2 text-ink">
+          <Icon className="h-4 w-4" />
+        </div>
+        <StatusPill status={def.status} />
+      </header>
+
+      <div className="mt-3">
+        <h3 className="font-display text-[18px] tracking-tight text-ink">{def.name}</h3>
+        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mid">
+          {def.category}
         </p>
       </div>
 
-      {banner && (
-        <div
-          className={cn(
-            'mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm',
-            banner.kind === 'success'
-              ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-500'
-              : 'border-destructive/30 bg-destructive/5 text-destructive',
-          )}
-        >
-          {banner.kind === 'success' ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-          ) : (
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          )}
-          <span className="flex-1">{banner.text}</span>
-          <button
-            onClick={() => setBanner(null)}
-            className="text-xs uppercase tracking-wide opacity-70 hover:opacity-100"
-          >
-            Fechar
-          </button>
+      <p className="mt-2 font-serif text-[13.5px] leading-snug text-ink-soft">
+        {def.description}
+      </p>
+
+      {def.detail && (
+        <div className="mt-3 rounded-sm border border-line-soft bg-paper-2 px-2.5 py-1.5">
+          <p className="truncate font-mono text-[10px] uppercase tracking-wider text-ink-mid">
+            {def.detail}
+          </p>
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="flex items-start gap-4">
-          <GoogleIcon className="h-10 w-10 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-medium text-foreground">Google Calendar</h2>
-              <ConnectionBadge connected={isConnected} loading={statusQuery.isLoading} />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sincroniza disponibilidade com sua agenda Google e cria eventos com Google Meet automaticamente em cada reuniao agendada.
-            </p>
-
-            {isConnected && status && (
-              <div className="mt-4 space-y-2 text-sm">
-                <Row label="Conta">
-                  <span className="text-foreground">{status.googleAccountEmail}</span>
-                </Row>
-                {status.connectedAt && (
-                  <Row label="Conectada em">
-                    <span className="text-foreground">
-                      {new Date(status.connectedAt).toLocaleDateString('pt-BR', {
-                        day: '2-digit', month: 'long', year: 'numeric',
-                      })}
-                    </span>
-                  </Row>
-                )}
-                {status.syncError && (
-                  <Row label="Erro de sync">
-                    <span className="text-destructive">{status.syncError}</span>
-                  </Row>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="shrink-0">
-            {isConnected ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={disconnectMutation.isPending}
-                onClick={() => {
-                  if (confirm('Desconectar conta Google? Eventos futuros nao serao mais sincronizados.')) {
-                    disconnectMutation.mutate()
-                  }
-                }}
-              >
-                {disconnectMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Link2Off className="h-3.5 w-3.5" />
-                )}
-                Desconectar
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                disabled={authorizeMutation.isPending || statusQuery.isLoading}
-                onClick={() => authorizeMutation.mutate()}
-              >
-                {authorizeMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Link2 className="h-3.5 w-3.5" />
-                )}
-                Conectar
-              </Button>
-            )}
-          </div>
-        </div>
+      <div className="mt-4 flex justify-end">
+        {busy ? (
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-mid">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            ...
+          </span>
+        ) : def.status === 'connected' ? (
+          <Button variant="outline" size="sm" onClick={onDisconnect}>
+            Desconectar
+          </Button>
+        ) : def.status === 'available' ? (
+          <Button size="sm" onClick={onConnect}>
+            Conectar →
+          </Button>
+        ) : (
+          <span className="font-mono text-[10px] uppercase tracking-wider text-ink-low">
+            {def.status === 'beta' ? 'em breve · beta' : 'em breve'}
+          </span>
+        )}
       </div>
-    </div>
+    </article>
   )
 }
 
-function ConnectionBadge({ connected, loading }: { connected: boolean; loading: boolean }) {
-  if (loading) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Verificando...
-      </span>
-    )
+function StatusPill({ status }: { status: Status }) {
+  const map: Record<Status, { label: string; cls: string }> = {
+    connected: { label: '● conectado', cls: 'border-good/40 bg-good/10 text-good' },
+    available: { label: 'disponivel', cls: 'border-ink/30 bg-paper-2 text-ink' },
+    beta: { label: 'beta', cls: 'border-gold/50 bg-gold-bg/40 text-gold-dk' },
+    soon: { label: 'em breve', cls: 'border-line bg-paper-2 text-ink-low' },
   }
+  const m = map[status]
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium',
-        connected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground',
+        'rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider',
+        m.cls,
       )}
     >
-      <span
-        className={cn(
-          'h-1.5 w-1.5 rounded-full',
-          connected ? 'bg-emerald-500' : 'bg-muted-foreground',
-        )}
-      />
-      {connected ? 'Conectado' : 'Nao conectado'}
+      {m.label}
     </span>
-  )
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="w-32 text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
-      <div className="flex-1">{children}</div>
-    </div>
-  )
-}
-
-function GoogleIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
-      <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-    </svg>
   )
 }
 

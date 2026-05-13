@@ -283,8 +283,12 @@ function SocialProofView({ data, onContinue }: { data: SocialProofNodeData; onCo
       )}
       <button
         onClick={onContinue}
-        className="rounded-lg px-8 py-3 text-sm font-medium text-white"
-        style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+        className="rounded-lg px-8 py-3 text-sm font-medium"
+        style={{
+          background: 'var(--form-primary)',
+          color: 'var(--form-primary-fg, #ffffff)',
+          borderRadius: 'var(--form-radius)',
+        }}
       >
         Continuar
       </button>
@@ -313,8 +317,12 @@ function AlignmentVideoView({ data, onContinue }: { data: AlignmentVideoNodeData
       )}
       <button
         onClick={onContinue}
-        className="rounded-lg px-8 py-3 text-sm font-medium text-white"
-        style={{ background: 'var(--form-primary)', borderRadius: 'var(--form-radius)' }}
+        className="rounded-lg px-8 py-3 text-sm font-medium"
+        style={{
+          background: 'var(--form-primary)',
+          color: 'var(--form-primary-fg, #ffffff)',
+          borderRadius: 'var(--form-radius)',
+        }}
       >
         Continuar
       </button>

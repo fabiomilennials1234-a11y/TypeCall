@@ -25,10 +25,12 @@ import { SellersPage } from '@/features/sellers/SellersPage'
 import { OnboardingPage } from '@/features/onboarding/OnboardingPage'
 import { RequireRole } from '@/hooks/useRequireRole'
 import { NotFoundPage } from '@/features/not-found/NotFoundPage'
+import { LandingPage } from '@/features/landing/LandingPage'
 
 export default function App() {
   return (
     <Routes>
+      <Route path="/marketing" element={<LandingPage />} />
       <Route path="/f/:slug" element={<FormRunnerPage />} />
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<LoginPage />} />

@@ -24,37 +24,75 @@
   --color-ring: hsl(var(--ring));
   --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+
+  --color-paper: hsl(var(--paper));
+  --color-paper-2: hsl(var(--paper-2));
+  --color-paper-3: hsl(var(--paper-3));
+  --color-ink: hsl(var(--ink));
+  --color-ink-mid: hsl(var(--ink-mid));
+  --color-ink-soft: hsl(var(--ink-soft));
+  --color-ink-low: hsl(var(--ink-low));
+  --color-line: hsl(var(--line));
+  --color-line-soft: hsl(var(--line-soft));
+  --color-gold: hsl(var(--gold));
+  --color-gold-bg: hsl(var(--gold-bg));
+  --color-gold-dk: hsl(var(--gold-dk));
+  --color-good: hsl(var(--good));
+  --color-bad: hsl(var(--bad));
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+  --font-serif: "Source Serif 4", "Source Serif Pro", Georgia, serif;
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.25rem;
 
-  /* Dark-first (default) */
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 263 70% 58%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 263 70% 58%;
-  --sidebar: 240 10% 5%;
-  --sidebar-foreground: 240 5% 64.9%;
+  /* Editorial cream paper / ink — light-first.
+     Contrast tuned for WCAG AA on paper/paper-2/paper-3 surfaces:
+     ink-low (42% L) on paper (96% L) ≈ 4.5:1. */
+  --paper: 38 38% 96%;
+  --paper-2: 36 30% 92%;
+  --paper-3: 34 22% 86%;
+  --ink: 30 12% 10%;
+  --ink-mid: 30 10% 28%;
+  --ink-soft: 30 10% 20%;
+  --ink-low: 30 8% 36%;
+  --line: 30 14% 76%;
+  --line-soft: 30 14% 84%;
+  --gold: 36 76% 48%;
+  --gold-bg: 42 80% 84%;
+  --gold-dk: 30 60% 32%;
+  --good: 142 50% 36%;
+  --bad: 0 64% 44%;
+
+  /* Mapped surfaces — shadcn primitives consume these */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-mid);
+  --accent: var(--paper-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--bad);
+  --destructive-foreground: var(--paper);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--ink);
+  --sidebar: var(--paper-2);
+  --sidebar-foreground: var(--ink-mid);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
@@ -73,34 +111,77 @@
   }
 }
 
-.light {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 263 70% 50%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 263 70% 50%;
-  --sidebar: 240 4.8% 95.9%;
-  --sidebar-foreground: 240 3.8% 46.1%;
+.dark {
+  /* Dark mode kept as opt-in: inverts paper/ink so editorial system survives.
+     Contrast tuned: ink-low (66% L) on paper (10% L) ≈ 6:1. */
+  --paper: 30 8% 8%;
+  --paper-2: 30 6% 13%;
+  --paper-3: 30 6% 18%;
+  --ink: 38 30% 95%;
+  --ink-mid: 30 10% 76%;
+  --ink-soft: 30 10% 84%;
+  --ink-low: 30 8% 66%;
+  --line: 30 8% 26%;
+  --line-soft: 30 8% 20%;
+  --gold: 36 70% 62%;
+  --gold-bg: 36 30% 24%;
+  --gold-dk: 36 60% 72%;
+  --good: 142 50% 60%;
+  --bad: 0 62% 64%;
 }
 
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  background-color: hsl(var(--paper));
+  color: hsl(var(--ink));
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+}
+
+.font-display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.font-mono-tc {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  color: hsl(var(--ink-mid));
+}
+
+.tc-underline {
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--gold));
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.18em;
+}
+
+::selection {
+  background: hsl(var(--ink));
+  color: hsl(var(--paper));
+}
+
+/* Form runner contrast guard.
+   Forms can override --form-primary/--form-text via per-form theme.
+   Ensure placeholder + secondary text always remain legible against
+   the chosen --form-text color (using its alpha-mixed variant). */
+.form-runner ::placeholder {
+  color: color-mix(in oklab, var(--form-text, hsl(var(--ink))) 55%, transparent);
+  opacity: 1;
+}
+.form-runner input,
+.form-runner textarea,
+.form-runner select {
+  color: var(--form-text, hsl(var(--ink)));
+}
+
+/* Generic safety: no text lighter than ink-low on the same surface. */
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--ink-mid));
+  opacity: 1;
 }
